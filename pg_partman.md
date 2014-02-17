@@ -279,11 +279,11 @@ If the extension was installed using *make*, the below script files should have 
  * --quiet (-q):           Switch setting to stop all output during and after partitioning.
  * Examples:
 ````
-Partition all data in a parent table. Commit after each partition is made.\n
-      python partition_data.py -c "host=localhost dbname=mydb" -p schema.parent_table -t time\n
-Partition by id in smaller intervals and pause between them for 5 seconds (assume >100 partition interval)\n
-      python partition_data.py -p schema.parent_table -t id -i 100 -w 5\n
-Partition by time in smaller intervals for at most 10 partitions in a single run (assume monthly partition interval)\n
+Partition all data in a parent table. Commit after each partition is made.
+      python partition_data.py -c "host=localhost dbname=mydb" -p schema.parent_table -t time
+Partition by id in smaller intervals and pause between them for 5 seconds (assume >100 partition interval)
+      python partition_data.py -p schema.parent_table -t id -i 100 -w 5
+Partition by time in smaller intervals for at most 10 partitions in a single run (assume monthly partition interval)
       python partition_data.py -p schema.parent_table -t time -i "1 week" -b 10
 ````
 
@@ -348,6 +348,6 @@ Partition by time in smaller intervals for at most 10 partitions in a single run
  * --drop_constraints (-d): Drop all constraints managed by pg_partman. Drops constraints on all child tables including current & future.
  * --add_constraints (-a):  Apply configured constraints to all child tables older than the premake value.
  * --jobs (-j):             Use the python multiprocessing library to recreate indexes in parallel. Value for -j is number of simultaneous jobs to run. Note that this is per table, not per index. Be very careful setting this option if load is a concern on your systems.
- *--wait (-w):              Wait the given number of seconds after a table has had its constraints dropped or applied before moving on to the next. When used with -j, this will set the pause between the batches of parallel jobs instead.
+ * --wait (-w):              Wait the given number of seconds after a table has had its constraints dropped or applied before moving on to the next. When used with -j, this will set the pause between the batches of parallel jobs instead.
  * --dryrun:                Show what the script will do without actually running it against the database. Highly recommend reviewing this before running.
  * --quiet (-q):            Turn off all output.
