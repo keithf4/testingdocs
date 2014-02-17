@@ -49,21 +49,25 @@ A superuser must be used to run all these functions in order to set privileges &
  * p_type - one of 5 values to set the partitioning type that will be used
 
 ````
-time-static   - Trigger function inserts only into specifically named partitions. The the number of partitions managed behind
-                and ahead of the current one is determined by the **premake** config value (default of 4 means data for 4
-                previous and 4 future partitions are handled automatically).
-                *Beware setting the premake value too high as that will lessen the efficiency of this partitioning method.*
+time-static   - Trigger function inserts only into specifically named partitions. The the number of partitions
+                managed behind and ahead of the current one is determined by the **premake** config value 
+                (default of 4 means data for 4 previous and 4 future partitions are handled automatically).
+                *Beware setting the premake value too high as that will lessen the efficiency of this 
+                partitioning method.*
                 Inserts to parent table outside the hard-coded time window will go to the parent.
                 Ideal for high TPS tables that get inserts of new data only.
                 Trigger function is kept up to date by run_maintenance() function.
-time-dynamic  - Trigger function can insert into any existing child partition based on the value of the control column at the time of insertion.
+time-dynamic  - Trigger function can insert into any existing child partition based on the value of the control 
+                column at the time of insertion.
                 More flexible but not as efficient as time-static. Does not require run_maintenance() function.
-time-custom   - Allows use of any time interval instead of the premade ones below. Note this uses the same method as time-dynamic.
+time-custom   - Allows use of any time interval instead of the premade ones below. Note this uses the same 
+                method as time-dynamic.
                 (so it can insert into any child at any time) as well as a lookup table.
                 So, while it is the most flexible of the time-based options, it is the least performant.
-id-static     - Same functionality and use of the premake value as time-static but for a numeric range instead of time.
-                When the id value reaches 50% of the max value for that partition, it will automatically create the next partition.
-                in sequence if it doesn't yet exist.
+id-static     - Same functionality and use of the premake value as time-static but for a numeric range 
+                instead of time.
+                When the id value reaches 50% of the max value for that partition, it will automatically create 
+                the next partition in sequence if it doesn't yet exist.
                 Does NOT require run_maintenance() function to create new partitions.
                 Only supports id values greater than or equal to zero.
 id-dynamic    - Same functionality and limitations as time-dynamic but for a numeric range instead of time.
