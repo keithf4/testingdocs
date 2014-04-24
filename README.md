@@ -28,6 +28,6 @@ The set_app_privileges() function sets the default privileges for the above role
  * Readonly role - All schemas are given USAGE
                  - All tables are given SELECT
 
-The **p_owner** parameter to set_app_privileges allows setting the object ownership to be skipped by setting it to false.
+The **p_owner** parameter in set_app_privileges allows setting the object ownership to be skipped by setting it to false.
 This can be useful when changing an existing app to avoid breaking current privileges.
 Note that set_app_privileges does NOT revoke any current privileges. It only adds additional grants.
