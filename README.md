@@ -9,7 +9,7 @@ Log into database:
 
 ```
 CREATE EXTENSION role_manager;
-
+```
 
 ## Setup 
 To create the 3 standard roles for a given application run:
