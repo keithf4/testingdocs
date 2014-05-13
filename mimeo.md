@@ -40,6 +40,7 @@ When adding a column, follow this order:
 3. Add to the source table
 
 When removing a column, follow this order:
+
 1. Remove from source table
 2. Remove from the source queue table
 3. Remove from the destination table (if desired. It can be left for historical records with no problems.)
