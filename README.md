@@ -1,36 +1,59 @@
-## Install
+[![PGXN version](https://badge.fury.io/pg/mimeo.svg)](https://badge.fury.io/pg/mimeo)
 
-```
-make
-make install
+Mimeo
+=====
 
-```
-Log into database:
+Mimeo is an extension that provides specialized, per-table replication between PostgreSQL instances. It currently provides snapshot (whole table copy), incremental (based on an incrementing timestamp or id), and DML (inserts, updates and deletes).
 
-```
-CREATE EXTENSION role_manager;
-```
+Also installing the pg_jobmon extension (see other repositories in omniti-labs) to log all replication activity and provide monitoring is highly recommended. 
 
-## Setup 
-To create the 3 standard roles for a given application run:
-```
-SELECT create_app_roles('appname');
-```
-This will create: appname_owner, appname_app, appname_readonly
+In addition to the documentaion, some additional information about this extension is discussed on the author's blog http://www.keithf4.com/tag/mimeo/
 
-The set_app_privileges() function sets the default privileges for the above roles as follows
+INSTALLATION
+------------
 
- * Owner role - all object in database are changed to being owned by this role
- * App role - All schemas are given USAGE
-            - All database tables are given SELECT, INSERT, UPDATE, DELETE, TRUNCATE privileges. 
-            - All functions are given EXECUTE.
-            - All sequences are given USAGE, SELECT, UPDATE
- * Readonly role - All schemas are given USAGE
-                 - All tables are given SELECT
+Requirements: dblink extension 
 
-```
-SELECT set_app_privileges('appname', true);
-```
-The **p_owner** parameter in set_app_privileges allows setting the object ownership to be skipped by setting it to false.
-This can be useful when changing an existing app to avoid breaking current privileges.
-Note that set_app_privileges does NOT revoke any current privileges. It only adds additional grants.
+Recommendations: pg_jobmon (>= 1.2.0) extension (https://github.com/omniti-labs/pg_jobmon)
+
+In directory where you downloaded mimeo to run
+
+    make
+    make install
+
+Log into PostgreSQL and run the following commands. Schema can be whatever you wish, but it cannot be changed after installation.
+
+    CREATE SCHEMA mimeo;
+    CREATE EXTENSION mimeo SCHEMA mimeo;
+
+See the doc folder for more usage information. The howto.md file provides a quickstart guide. The mimeo.md file contains a full reference guide.
+
+
+UPGRADE
+-------
+
+Make sure all the upgrade scripts for the version you have installed up to the most recent version are in the $BASEDIR/share/extension folder. 
+
+    ALTER EXTENSION mimeo UPDATE TO '<latest version>';
+
+
+AUTHOR
+------
+
+Keith Fiske  
+OmniTI, Inc - http://www.omniti.com  
+keith@omniti.com
+
+
+LICENSE AND COPYRIGHT
+---------------------
+
+Mimeo is released under the PostgreSQL License, a liberal Open Source license, similar to the BSD or MIT licenses.
+
+Copyright (c) 2014 OmniTI, Inc.
+
+Permission to use, copy, modify, and distribute this software and its documentation for any purpose, without fee, and without a written agreement is hereby granted, provided that the above copyright notice and this paragraph and the following two paragraphs appear in all copies.
+
+IN NO EVENT SHALL THE AUTHOR BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF THE AUTHOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+THE AUTHOR SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS IS" BASIS, AND THE AUTHOR HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
