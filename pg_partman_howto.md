@@ -310,15 +310,15 @@ Since there is already data in the table, the child tables initially created wil
     keith=# select tablename from pg_tables where schemaname = 'partman_test' order by tablename;
             tablename        
     -------------------------
-     id_static_table
-     id_static_table_p100000
-     id_static_table_p110000
-     id_static_table_p120000
-     id_static_table_p80000
-     id_static_table_p90000
+     id_taptest_table
+     id_taptest_table_p100000
+     id_taptest_table_p110000
+     id_taptest_table_p120000
+     id_taptest_table_p80000
+     id_taptest_table_p90000
 ```
 However, the data still resides in the parent table at this time. To partition it out, use the python script as mentioned above. The options below will cause it to commit every 100 rows. If the interval option was not given, it would commit them at the configured interval of 10,000. Allowing a lower interval decreases the possible contention and allows the data to be more readily available in the newly created partitions:
-
+```
     $ python partition_data.py -c host=localhost -p partman_test.id_taptest_table -t id -i 100
     Attempting to turn off autovacuum for partition set...
     ... Success!
@@ -332,348 +332,348 @@ However, the data still resides in the parent table at this time. To partition i
     Running vacuum analyze on parent table...
     Attempting to reset autovacuum for old parent table and all child tables...
         ... Success!
-
+```
 Partitioning the data like this has also made the partitions that were needed to store the data
-
+```
     keith=# select tablename from pg_tables where schemaname = 'partman_test' order by tablename;
             tablename        
     -------------------------
-     id_static_table
-     id_static_table_p0
-     id_static_table_p10000
-     id_static_table_p100000
-     id_static_table_p110000
-     id_static_table_p120000
-     id_static_table_p20000
-     id_static_table_p30000
-     id_static_table_p40000
-     id_static_table_p50000
-     id_static_table_p60000
-     id_static_table_p70000
-     id_static_table_p80000
-     id_static_table_p90000
+     id_taptest_table
+     id_taptest_table_p0
+     id_taptest_table_p10000
+     id_taptest_table_p100000
+     id_taptest_table_p110000
+     id_taptest_table_p120000
+     id_taptest_table_p20000
+     id_taptest_table_p30000
+     id_taptest_table_p40000
+     id_taptest_table_p50000
+     id_taptest_table_p60000
+     id_taptest_table_p70000
+     id_taptest_table_p80000
+     id_taptest_table_p90000
     (14 rows)
-
+```
 Now create the sub-partitions for 1000. As was noted above for time, we give the parent table who's children we want partitioned along with the properties to give those children:
-
-    keith=# SELECT create_sub_parent('partman_test.id_static_table', 'col1', 'id-static', '1000', p_jobmon := false, p_premake := 2);
+```
+    keith=# SELECT create_sub_parent('partman_test.id_taptest_table', 'col1', 'id', '1000', p_jobmon := false, p_premake := 2);
      create_sub_parent 
     -------------------
      t
     (1 row)
-
+```
 All children tables get at least their minimum sub-partition made and the sub-partitions based around the current max value are also created. 
-
+```
     keith=# select tablename from pg_tables where schemaname = 'partman_test' order by tablename;
                 tablename            
     ---------------------------------
-     id_static_table
-     id_static_table_p0
-     id_static_table_p0_p0
-     id_static_table_p10000
-     id_static_table_p100000
-     id_static_table_p100000_p100000
-     id_static_table_p100000_p101000
-     id_static_table_p100000_p102000
-     id_static_table_p10000_p10000
-     id_static_table_p110000
-     id_static_table_p110000_p110000
-     id_static_table_p120000
-     id_static_table_p120000_p120000
-     id_static_table_p20000
-     id_static_table_p20000_p20000
-     id_static_table_p30000
-     id_static_table_p30000_p30000
-     id_static_table_p40000
-     id_static_table_p40000_p40000
-     id_static_table_p50000
-     id_static_table_p50000_p50000
-     id_static_table_p60000
-     id_static_table_p60000_p60000
-     id_static_table_p70000
-     id_static_table_p70000_p70000
-     id_static_table_p80000
-     id_static_table_p80000_p80000
-     id_static_table_p90000
-     id_static_table_p90000_p98000
-     id_static_table_p90000_p99000
+     id_taptest_table
+     id_taptest_table_p0
+     id_taptest_table_p0_p0
+     id_taptest_table_p10000
+     id_taptest_table_p100000
+     id_taptest_table_p100000_p100000
+     id_taptest_table_p100000_p101000
+     id_taptest_table_p100000_p102000
+     id_taptest_table_p10000_p10000
+     id_taptest_table_p110000
+     id_taptest_table_p110000_p110000
+     id_taptest_table_p120000
+     id_taptest_table_p120000_p120000
+     id_taptest_table_p20000
+     id_taptest_table_p20000_p20000
+     id_taptest_table_p30000
+     id_taptest_table_p30000_p30000
+     id_taptest_table_p40000
+     id_taptest_table_p40000_p40000
+     id_taptest_table_p50000
+     id_taptest_table_p50000_p50000
+     id_taptest_table_p60000
+     id_taptest_table_p60000_p60000
+     id_taptest_table_p70000
+     id_taptest_table_p70000_p70000
+     id_taptest_table_p80000
+     id_taptest_table_p80000_p80000
+     id_taptest_table_p90000
+     id_taptest_table_p90000_p98000
+     id_taptest_table_p90000_p99000
     (30 rows)
-
+```
 If you're wondering why, even with data in them, the children didn't get all their sub-partitions created, it's for the same reason that the top partition only initially had the 2 previous and 2 after created: the data still exists in the sub-partition parents. You can see this by running the monitoring function built into pg_partman here:
-
+```
     keith=# select * from  check_parent() order by 1;
                  parent_table             | count 
     --------------------------------------+-------
-     partman_test.id_static_table_p0      |  9999
-     partman_test.id_static_table_p10000  | 10000
-     partman_test.id_static_table_p100000 |     1
-     partman_test.id_static_table_p20000  | 10000
-     partman_test.id_static_table_p30000  | 10000
-     partman_test.id_static_table_p40000  | 10000
-     partman_test.id_static_table_p50000  | 10000
-     partman_test.id_static_table_p60000  | 10000
-     partman_test.id_static_table_p70000  | 10000
-     partman_test.id_static_table_p80000  | 10000
-     partman_test.id_static_table_p90000  | 10000
+     partman_test.id_taptest_table_p0      |  9999
+     partman_test.id_taptest_table_p10000  | 10000
+     partman_test.id_taptest_table_p100000 |     1
+     partman_test.id_taptest_table_p20000  | 10000
+     partman_test.id_taptest_table_p30000  | 10000
+     partman_test.id_taptest_table_p40000  | 10000
+     partman_test.id_taptest_table_p50000  | 10000
+     partman_test.id_taptest_table_p60000  | 10000
+     partman_test.id_taptest_table_p70000  | 10000
+     partman_test.id_taptest_table_p80000  | 10000
+     partman_test.id_taptest_table_p90000  | 10000
     (11 rows)
-
+```
 So, lets fix that:
-
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p0 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p10000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p20000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p30000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p40000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p50000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p60000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p70000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p80000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p90000 -t id -i 100
-    python partition_data.py -c host=localhost -p partman_test.id_static_table_p100000 -t id -i 100
-
+```
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p0 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p10000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p20000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p30000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p40000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p50000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p60000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p70000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p80000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p90000 -t id -i 100
+    python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p100000 -t id -i 100
+```
 Now the monitoring function returns nothing (as should be the norm):
-
+```
     keith=# select * from  check_parent() order by 1;
      parent_table | count 
     --------------+-------
     (0 rows)
-
+```
 Now we also see all child partitons were created for the data that exists:
-
+```
     keith=# SELECT tablename FROM pg_tables WHERE schemaname = 'partman_test' order by tablename;
                 tablename            
     ---------------------------------
-     id_static_table
-     id_static_table_p0
-     id_static_table_p0_p0
-     id_static_table_p0_p1000
-     id_static_table_p0_p2000
-     id_static_table_p0_p3000
-     id_static_table_p0_p4000
-     id_static_table_p0_p5000
-     id_static_table_p0_p6000
-     id_static_table_p0_p7000
-     id_static_table_p0_p8000
-     id_static_table_p0_p9000
-     id_static_table_p10000
-     id_static_table_p100000
-     id_static_table_p100000_p100000
-     id_static_table_p100000_p101000
-     id_static_table_p100000_p102000
-     id_static_table_p10000_p10000
-     id_static_table_p10000_p11000
-     id_static_table_p10000_p12000
-     id_static_table_p10000_p13000
-     id_static_table_p10000_p14000
-     id_static_table_p10000_p15000
-     id_static_table_p10000_p16000
-     id_static_table_p10000_p17000
-     id_static_table_p10000_p18000
-     id_static_table_p10000_p19000
-     id_static_table_p110000
-     id_static_table_p110000_p110000
-     id_static_table_p120000
-     id_static_table_p120000_p120000
-     id_static_table_p20000
-     id_static_table_p20000_p20000
-     id_static_table_p20000_p21000
-     id_static_table_p20000_p22000
-     id_static_table_p20000_p23000
-     id_static_table_p20000_p24000
-     id_static_table_p20000_p25000
-     id_static_table_p20000_p26000
-     id_static_table_p20000_p27000
-     id_static_table_p20000_p28000
-     id_static_table_p20000_p29000
-     id_static_table_p30000
-     id_static_table_p30000_p30000
-     id_static_table_p30000_p31000
-     id_static_table_p30000_p32000
-     id_static_table_p30000_p33000
-     id_static_table_p30000_p34000
-     id_static_table_p30000_p35000
-     id_static_table_p30000_p36000
-     id_static_table_p30000_p37000
-     id_static_table_p30000_p38000
-     id_static_table_p30000_p39000
-     id_static_table_p40000
-     id_static_table_p40000_p40000
-     id_static_table_p40000_p41000
-     id_static_table_p40000_p42000
-     id_static_table_p40000_p43000
-     id_static_table_p40000_p44000
-     id_static_table_p40000_p45000
-     id_static_table_p40000_p46000
-     id_static_table_p40000_p47000
-     id_static_table_p40000_p48000
-     id_static_table_p40000_p49000
-     id_static_table_p50000
-     id_static_table_p50000_p50000
-     id_static_table_p50000_p51000
-     id_static_table_p50000_p52000
-     id_static_table_p50000_p53000
-     id_static_table_p50000_p54000
-     id_static_table_p50000_p55000
-     id_static_table_p50000_p56000
-     id_static_table_p50000_p57000
-     id_static_table_p50000_p58000
-     id_static_table_p50000_p59000
-     id_static_table_p60000
-     id_static_table_p60000_p60000
-     id_static_table_p60000_p61000
-     id_static_table_p60000_p62000
-     id_static_table_p60000_p63000
-     id_static_table_p60000_p64000
-     id_static_table_p60000_p65000
-     id_static_table_p60000_p66000
-     id_static_table_p60000_p67000
-     id_static_table_p60000_p68000
-     id_static_table_p60000_p69000
-     id_static_table_p70000
-     id_static_table_p70000_p70000
-     id_static_table_p70000_p71000
-     id_static_table_p70000_p72000
-     id_static_table_p70000_p73000
-     id_static_table_p70000_p74000
-     id_static_table_p70000_p75000
-     id_static_table_p70000_p76000
-     id_static_table_p70000_p77000
-     id_static_table_p70000_p78000
-     id_static_table_p70000_p79000
-     id_static_table_p80000
-     id_static_table_p80000_p80000
-     id_static_table_p80000_p81000
-     id_static_table_p80000_p82000
-     id_static_table_p80000_p83000
-     id_static_table_p80000_p84000
-     id_static_table_p80000_p85000
-     id_static_table_p80000_p86000
-     id_static_table_p80000_p87000
-     id_static_table_p80000_p88000
-     id_static_table_p80000_p89000
-     id_static_table_p90000
-     id_static_table_p90000_p90000
-     id_static_table_p90000_p91000
-     id_static_table_p90000_p92000
-     id_static_table_p90000_p93000
-     id_static_table_p90000_p94000
-     id_static_table_p90000_p95000
-     id_static_table_p90000_p96000
-     id_static_table_p90000_p97000
-     id_static_table_p90000_p98000
-     id_static_table_p90000_p99000
+     id_taptest_table
+     id_taptest_table_p0
+     id_taptest_table_p0_p0
+     id_taptest_table_p0_p1000
+     id_taptest_table_p0_p2000
+     id_taptest_table_p0_p3000
+     id_taptest_table_p0_p4000
+     id_taptest_table_p0_p5000
+     id_taptest_table_p0_p6000
+     id_taptest_table_p0_p7000
+     id_taptest_table_p0_p8000
+     id_taptest_table_p0_p9000
+     id_taptest_table_p10000
+     id_taptest_table_p100000
+     id_taptest_table_p100000_p100000
+     id_taptest_table_p100000_p101000
+     id_taptest_table_p100000_p102000
+     id_taptest_table_p10000_p10000
+     id_taptest_table_p10000_p11000
+     id_taptest_table_p10000_p12000
+     id_taptest_table_p10000_p13000
+     id_taptest_table_p10000_p14000
+     id_taptest_table_p10000_p15000
+     id_taptest_table_p10000_p16000
+     id_taptest_table_p10000_p17000
+     id_taptest_table_p10000_p18000
+     id_taptest_table_p10000_p19000
+     id_taptest_table_p110000
+     id_taptest_table_p110000_p110000
+     id_taptest_table_p120000
+     id_taptest_table_p120000_p120000
+     id_taptest_table_p20000
+     id_taptest_table_p20000_p20000
+     id_taptest_table_p20000_p21000
+     id_taptest_table_p20000_p22000
+     id_taptest_table_p20000_p23000
+     id_taptest_table_p20000_p24000
+     id_taptest_table_p20000_p25000
+     id_taptest_table_p20000_p26000
+     id_taptest_table_p20000_p27000
+     id_taptest_table_p20000_p28000
+     id_taptest_table_p20000_p29000
+     id_taptest_table_p30000
+     id_taptest_table_p30000_p30000
+     id_taptest_table_p30000_p31000
+     id_taptest_table_p30000_p32000
+     id_taptest_table_p30000_p33000
+     id_taptest_table_p30000_p34000
+     id_taptest_table_p30000_p35000
+     id_taptest_table_p30000_p36000
+     id_taptest_table_p30000_p37000
+     id_taptest_table_p30000_p38000
+     id_taptest_table_p30000_p39000
+     id_taptest_table_p40000
+     id_taptest_table_p40000_p40000
+     id_taptest_table_p40000_p41000
+     id_taptest_table_p40000_p42000
+     id_taptest_table_p40000_p43000
+     id_taptest_table_p40000_p44000
+     id_taptest_table_p40000_p45000
+     id_taptest_table_p40000_p46000
+     id_taptest_table_p40000_p47000
+     id_taptest_table_p40000_p48000
+     id_taptest_table_p40000_p49000
+     id_taptest_table_p50000
+     id_taptest_table_p50000_p50000
+     id_taptest_table_p50000_p51000
+     id_taptest_table_p50000_p52000
+     id_taptest_table_p50000_p53000
+     id_taptest_table_p50000_p54000
+     id_taptest_table_p50000_p55000
+     id_taptest_table_p50000_p56000
+     id_taptest_table_p50000_p57000
+     id_taptest_table_p50000_p58000
+     id_taptest_table_p50000_p59000
+     id_taptest_table_p60000
+     id_taptest_table_p60000_p60000
+     id_taptest_table_p60000_p61000
+     id_taptest_table_p60000_p62000
+     id_taptest_table_p60000_p63000
+     id_taptest_table_p60000_p64000
+     id_taptest_table_p60000_p65000
+     id_taptest_table_p60000_p66000
+     id_taptest_table_p60000_p67000
+     id_taptest_table_p60000_p68000
+     id_taptest_table_p60000_p69000
+     id_taptest_table_p70000
+     id_taptest_table_p70000_p70000
+     id_taptest_table_p70000_p71000
+     id_taptest_table_p70000_p72000
+     id_taptest_table_p70000_p73000
+     id_taptest_table_p70000_p74000
+     id_taptest_table_p70000_p75000
+     id_taptest_table_p70000_p76000
+     id_taptest_table_p70000_p77000
+     id_taptest_table_p70000_p78000
+     id_taptest_table_p70000_p79000
+     id_taptest_table_p80000
+     id_taptest_table_p80000_p80000
+     id_taptest_table_p80000_p81000
+     id_taptest_table_p80000_p82000
+     id_taptest_table_p80000_p83000
+     id_taptest_table_p80000_p84000
+     id_taptest_table_p80000_p85000
+     id_taptest_table_p80000_p86000
+     id_taptest_table_p80000_p87000
+     id_taptest_table_p80000_p88000
+     id_taptest_table_p80000_p89000
+     id_taptest_table_p90000
+     id_taptest_table_p90000_p90000
+     id_taptest_table_p90000_p91000
+     id_taptest_table_p90000_p92000
+     id_taptest_table_p90000_p93000
+     id_taptest_table_p90000_p94000
+     id_taptest_table_p90000_p95000
+     id_taptest_table_p90000_p96000
+     id_taptest_table_p90000_p97000
+     id_taptest_table_p90000_p98000
+     id_taptest_table_p90000_p99000
     (119 rows)
-
+```
 We can still take this another level deeper as well. Normally with a large amount of data, it's not recommended to partition down to an interval this low since the benefit gained is minimal compared the management of such a large number of tables. But it's being done here as an example. Just as with the time example above, we now have to sub-partition each one of the sub-parent tables to say how we want their children sub-partitioned:
-
-    SELECT create_sub_parent('partman_test.id_static_table_p0', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p10000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p20000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p30000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p40000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p50000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p60000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p70000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p80000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p90000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-    SELECT create_sub_parent('partman_test.id_static_table_p100000', 'col1', 'id-static', '100', p_jobmon := false, p_premake := 2);
-
+```
+    SELECT create_sub_parent('partman_test.id_taptest_table_p0', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p10000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p20000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p30000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p40000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p50000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p60000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p70000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p80000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p90000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+    SELECT create_sub_parent('partman_test.id_taptest_table_p100000', 'col1', 'id', '100', p_jobmon := false, p_premake := 2);
+```
 I won't show the full list here, but you can see how every child table of the above parents is now a parent table itself with the appropriate minimal child table created where needed as well as the child tables around the current max:
-
+```
     keith=# SELECT tablename FROM pg_tables WHERE schemaname = 'partman_test' order by tablename;
                     tablename                
     -----------------------------------------
-     id_static_table
-     id_static_table_p0
-     id_static_table_p0_p0
-     id_static_table_p0_p0_p0
-     id_static_table_p0_p1000
-     id_static_table_p0_p1000_p1000
-     id_static_table_p0_p2000
-     id_static_table_p0_p2000_p2000
+     id_taptest_table
+     id_taptest_table_p0
+     id_taptest_table_p0_p0
+     id_taptest_table_p0_p0_p0
+     id_taptest_table_p0_p1000
+     id_taptest_table_p0_p1000_p1000
+     id_taptest_table_p0_p2000
+     id_taptest_table_p0_p2000_p2000
      ...
-     id_static_table_p10000
-     id_static_table_p100000
-     id_static_table_p100000_p100000
-     id_static_table_p100000_p100000_p100000
-     id_static_table_p100000_p100000_p100100
-     id_static_table_p100000_p100000_p100200
-     id_static_table_p100000_p101000
-     id_static_table_p100000_p101000_p101000
-     id_static_table_p100000_p102000
-     id_static_table_p100000_p102000_p102000
-     id_static_table_p10000_p10000
-     id_static_table_p10000_p10000_p10000
-     id_static_table_p10000_p11000
-     id_static_table_p10000_p11000_p11000
+     id_taptest_table_p10000
+     id_taptest_table_p100000
+     id_taptest_table_p100000_p100000
+     id_taptest_table_p100000_p100000_p100000
+     id_taptest_table_p100000_p100000_p100100
+     id_taptest_table_p100000_p100000_p100200
+     id_taptest_table_p100000_p101000
+     id_taptest_table_p100000_p101000_p101000
+     id_taptest_table_p100000_p102000
+     id_taptest_table_p100000_p102000_p102000
+     id_taptest_table_p10000_p10000
+     id_taptest_table_p10000_p10000_p10000
+     id_taptest_table_p10000_p11000
+     id_taptest_table_p10000_p11000_p11000
      ...
-     id_static_table_p90000_p98000
-     id_static_table_p90000_p98000_p98000
-     id_static_table_p90000_p99000
-     id_static_table_p90000_p99000_p99800
-     id_static_table_p90000_p99000_p99900
+     id_taptest_table_p90000_p98000
+     id_taptest_table_p90000_p98000_p98000
+     id_taptest_table_p90000_p99000
+     id_taptest_table_p90000_p99000_p99800
+     id_taptest_table_p90000_p99000_p99900
     (225 rows)
-
+```
 If you ran the check_parent() function, you'd see that now each one of these new parent tables now needs to have its data moved. Now's a good time show a trick for generating many individual statements based on values returned from a query:
-
+```
     SELECT 'python partition_data.py -c host=localhost -p '||parent_table||' -t id -i 100' FROM part_config order by parent_table;
 
                                                     ?column?                                                 
     ---------------------------------------------------------------------------------------------------------
-     python partition_data.py -c host=localhost -p partman_test.id_static_table -t id -i 100
-     python partition_data.py -c host=localhost -p partman_test.id_static_table_p0 -t id -i 100
-     python partition_data.py -c host=localhost -p partman_test.id_static_table_p0_p0 -t id -i 100
-     python partition_data.py -c host=localhost -p partman_test.id_static_table_p0_p1000 -t id -i 100
+     python partition_data.py -c host=localhost -p partman_test.id_taptest_table -t id -i 100
+     python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p0 -t id -i 100
+     python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p0_p0 -t id -i 100
+     python partition_data.py -c host=localhost -p partman_test.id_taptest_table_p0_p1000 -t id -i 100
     ...
-
+```
 This will generate the commands to partition out the data found in any parent table managed by pg_partman. Yes some are already empty, but that won't matter since they'll just do nothing and it makes the query to generate these commands easier. Recommend putting the output from this into an executable shell file vs just pasting it all into the shell directly. Now if you get a list of all the tables, you can see there's quite a lot now (the row count returned is the number of tables).
-
+```
     keith=# SELECT tablename FROM pg_tables WHERE schemaname = 'partman_test' order by tablename;
                     tablename                
     -----------------------------------------
-     id_static_table
-     id_static_table_p0
-     id_static_table_p0_p0
-     id_static_table_p0_p0_p0
-     id_static_table_p0_p0_p100
-     id_static_table_p0_p0_p200
-     id_static_table_p0_p0_p300
-     id_static_table_p0_p0_p400
-     id_static_table_p0_p0_p500
-     id_static_table_p0_p0_p600
-     id_static_table_p0_p0_p700
-     id_static_table_p0_p0_p800
-     id_static_table_p0_p0_p900
-     id_static_table_p0_p1000
-     id_static_table_p0_p1000_p1000
-     id_static_table_p0_p1000_p1100
-     id_static_table_p0_p1000_p1200
-     id_static_table_p0_p1000_p1300
-     id_static_table_p0_p1000_p1400
-     id_static_table_p0_p1000_p1500
-     id_static_table_p0_p1000_p1600
-     id_static_table_p0_p1000_p1700
-     id_static_table_p0_p1000_p1800
-     id_static_table_p0_p1000_p1900
-     id_static_table_p0_p2000
-     id_static_table_p0_p2000_p2000
-     id_static_table_p0_p2000_p2100
+     id_taptest_table
+     id_taptest_table_p0
+     id_taptest_table_p0_p0
+     id_taptest_table_p0_p0_p0
+     id_taptest_table_p0_p0_p100
+     id_taptest_table_p0_p0_p200
+     id_taptest_table_p0_p0_p300
+     id_taptest_table_p0_p0_p400
+     id_taptest_table_p0_p0_p500
+     id_taptest_table_p0_p0_p600
+     id_taptest_table_p0_p0_p700
+     id_taptest_table_p0_p0_p800
+     id_taptest_table_p0_p0_p900
+     id_taptest_table_p0_p1000
+     id_taptest_table_p0_p1000_p1000
+     id_taptest_table_p0_p1000_p1100
+     id_taptest_table_p0_p1000_p1200
+     id_taptest_table_p0_p1000_p1300
+     id_taptest_table_p0_p1000_p1400
+     id_taptest_table_p0_p1000_p1500
+     id_taptest_table_p0_p1000_p1600
+     id_taptest_table_p0_p1000_p1700
+     id_taptest_table_p0_p1000_p1800
+     id_taptest_table_p0_p1000_p1900
+     id_taptest_table_p0_p2000
+     id_taptest_table_p0_p2000_p2000
+     id_taptest_table_p0_p2000_p2100
      ...
-     id_static_table_p90000_p98000_p98800
-     id_static_table_p90000_p98000_p98900
-     id_static_table_p90000_p99000
-     id_static_table_p90000_p99000_p99000
-     id_static_table_p90000_p99000_p99100
-     id_static_table_p90000_p99000_p99200
-     id_static_table_p90000_p99000_p99300
-     id_static_table_p90000_p99000_p99400
-     id_static_table_p90000_p99000_p99500
-     id_static_table_p90000_p99000_p99600
-     id_static_table_p90000_p99000_p99700
-     id_static_table_p90000_p99000_p99800
-     id_static_table_p90000_p99000_p99900
+     id_taptest_table_p90000_p98000_p98800
+     id_taptest_table_p90000_p98000_p98900
+     id_taptest_table_p90000_p99000
+     id_taptest_table_p90000_p99000_p99000
+     id_taptest_table_p90000_p99000_p99100
+     id_taptest_table_p90000_p99000_p99200
+     id_taptest_table_p90000_p99000_p99300
+     id_taptest_table_p90000_p99000_p99400
+     id_taptest_table_p90000_p99000_p99500
+     id_taptest_table_p90000_p99000_p99600
+     id_taptest_table_p90000_p99000_p99700
+     id_taptest_table_p90000_p99000_p99800
+     id_taptest_table_p90000_p99000_p99900
     (1124 rows)
-
+```
 Now all 100,000 rows are properly partitioned where they should be and any new rows should go where they're supposed to. 
 
 
@@ -689,57 +689,57 @@ If you're using the Background Worker (BGW), set the pg_partman_bgw.interval val
     pg_partman_bgw.role = 'keith'
     pg_partman_bgw.dbname = 'keith'
 
-If you're not using the Background Worker, you must use a third-party scheduling tool like cron to schedule the calls to run_maintenance()
+If you're not using the BGW, you must use a third-party scheduling tool like cron to schedule the calls to run_maintenance()
 
     03 01,13 * * * psql -c "SELECT run_maintenance()"
 
 ### Use Retention Policy
 
 To drop partitions on the first example above that are older than 30 days, set the following:
-
-    UPDATE part_config SET retention = '30 days', retention_keep_table = false WHERE parent_table = 'partman_test.time_static_table';
-
+```
+    UPDATE part_config SET retention = '30 days', retention_keep_table = false WHERE parent_table = 'partman_test.time_taptest_table';
+```
 To drop partitions on the second example above that contain a value 100 less than the current max (max(col1) - 100), set the following:
-
-    UPDATE part_config SET retention = '100', retention_keep_table = false WHERE parent_table = 'partman_test.id_static_table';
-
+```
+    UPDATE part_config SET retention = '100', retention_keep_table = false WHERE parent_table = 'partman_test.id_taptest_table';
+```
 For example, once the current id value of col1 reaches 1000, all partitions with values less than 900 will be dropped.
 
 If you'd like to keep the old data stored offline in dump files, set the retention_schema column as well (the keep* config options will be overridden if this is set):
-
-    UPDATE part_config SET retention = '30 days', retention_schema = 'archive' WHERE parent_table = 'partman_test.time_static_table';
-
+```
+    UPDATE part_config SET retention = '30 days', retention_schema = 'archive' WHERE parent_table = 'partman_test.time_taptest_table';
+```
 Then use the included python script **dump_partition.py** to dump out all tables contained in the archive schema:
-
+```
     $ python dump_partition.py -c "host=localhost username=postgres" -d mydatabase -n archive -o /path/to/dump/location 
-
+```
 To implement any retention policy, just ensure run_maintenance() is called often enough for your needs. That function handles both partition creation and the retention policies.
 
 
-### Undo Partitioning: Simple Time Based Static
+### Undo Partitioning: Simple Time Based
 
-As with partitioning data out, it's best to use the python script to undo partitioning as well to avoid contention and moving large amounts of data in a single transaction. There's no data in these partition sets, but the example would work either way. This also shows how you can give time-based partition sets a lower interval than what they are partitioned at. This set was daily above, but the batches are committed at the hourly marks (if there was data).
-
-    $ python undo_partition.py -p partman_test.time_static_table -c host=localhost -t time -i "1 hour"
+As with partitioning data out, it's best to use the python script to undo partitioning as well to avoid contention and moving large amounts of data in a single transaction. Except for the final example, there's no data in these partition sets, but the example would work either way. This also shows how you can give time-based partition sets a lower interval than what they are partitioned at. This set was daily above, but the batches are committed at the hourly marks (if there was data).
+```
+    $ python undo_partition.py -p partman_test.time_taptest_table -c host=localhost -t time -i "1 hour"
     Attempting to turn off autovacuum for partition set...
         ... Success!
     Total rows moved: 0
     Running vacuum analyze on parent table...
     Attempting to reset autovacuum for old parent table...
         ... Success!
-
-### Undo Partitioning: Simple Serial ID Static
+```
+### Undo Partitioning: Simple Serial ID
 
 This just undoes the id partitions committing at the default partition interval of 10 given above.
-
-    $ python undo_partition.py -p partman_test.id_static_table -c host=localhost -t id
+```
+    $ python undo_partition.py -p partman_test.id_taptest_table -c host=localhost -t id
     Attempting to turn off autovacuum for partition set...
         ... Success!
     Total rows moved: 0
     Running vacuum analyze on parent table...
     Attempting to reset autovacuum for old parent table...
         ... Success!
-
+```
 
 ### Undo Partitioning: Sub-partition ID->ID->ID
 
@@ -749,42 +749,42 @@ Undoing sub-partitioning involves a little more work (or possibly a lot if it's 
 
 First do the lowest level sub-partitons:
 
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p0_p0 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p0_p1000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p0_p2000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p0_p0 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p0_p1000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p0_p2000 -t id -i 100 --droptable
     ...
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p100000_p100000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p100000_p101000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p100000_p102000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p100000_p100000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p100000_p101000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p100000_p102000 -t id -i 100 --droptable
 
 Next do what were the mid level sub-partitions:
 
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p0 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p10000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p100000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p110000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p120000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p20000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p30000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p40000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p50000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p60000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p70000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p80000 -t id -i 100 --droptable
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table_p90000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p0 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p10000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p100000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p110000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p120000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p20000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p30000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p40000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p50000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p60000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p70000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p80000 -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table_p90000 -t id -i 100 --droptable
 
 And finally do the last, top level partition:
 
-    python undo_partition.py -c host=localhost -p partman_test.id_static_table -t id -i 100 --droptable
+    python undo_partition.py -c host=localhost -p partman_test.id_taptest_table -t id -i 100 --droptable
 
 Now there is only one table left with all the data
 
     keith=# SELECT tablename FROM pg_tables WHERE schemaname = 'partman_test' order by tablename;
         tablename    
     -----------------
-     id_static_table
+     id_taptest_table
 
-    keith=# SELECT count(*) FROM partman_test.id_static_table ;
+    keith=# SELECT count(*) FROM partman_test.id_taptest_table ;
      count  
     --------
      100000
