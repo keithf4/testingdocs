@@ -6,13 +6,14 @@ About
 
 Mimeo is a replication extension for copying specific tables in one of several specialized ways from any number of source databases to a destination database where mimeo is installed. 
 
-Snapshot replication is for copying the entire table from the source to the destination every time it is run. This is the only one of the replication types that can automatically replicate column changes (add, drop, rename, new type). It can also detect if there has been no new DML (inserts, updates, deletes) on the source table and skip the data pull step entirely (does not work if source is a view). The "track_counts" PostgreSQL setting must be turned on for this to work (which is the default). Be aware that a column structure change will cause the tables and view to be recreated from scratch on the destination. Indexes as they exist on the source will be automatically recreated if the p_index parameter for the refresh_snap() function is set to true (default) and permissions as they exist on the destination will be preserved. But if you had any different indexes or constraints on the destination, you will have to use the *post_script* column in the config table to have them automatically recreated.
+**Snapshot replication** is for copying the entire table from the source to the destination every time it is run. This is the only one of the replication types that can automatically replicate column changes (add, drop, rename, new type). It can also detect if there has been no new DML (inserts, updates, deletes) on the source table and skip the data pull step entirely (does not work if source is a view). The "track_counts" PostgreSQL setting must be turned on for this to work (which is the default). Be aware that a column structure change will cause the tables and view to be recreated from scratch on the destination. Indexes as they exist on the source will be automatically recreated if the p_index parameter for the refresh_snap() function is set to true (default) and permissions as they exist on the destination will be preserved. But if you had any different indexes or constraints on the destination, you will have to use the *post_script* column in the config table to have them automatically recreated.
 
-Incremental replication comes in two forms: Insert Only and Insert/Update Only. This can only be done on a table that has a timestamp or serial/id control column that is set during every insert and/or update. The update replication requires that the source has a primary key. Insert-only replication doesn't require a primary key, just the control column. If the source table ever has rows deleted, this WILL NOT be replicated to the destination.
+**Incremental replication** comes in two forms: Insert Only and Insert/Update Only. This can only be done on a table that has a timestamp or serial/id control column that is set during every insert and/or update. The update replication requires that the source has a primary key. Insert-only replication doesn't require a primary key, just the control column. If the source table ever has rows deleted, this WILL NOT be replicated to the destination.
 For time-based incremental replication, systems that do not run in UTC time can have issues during DST changes. To account for this, these maker functions check the timezone of the server and if it is anything but UTC/GMT, it sets dst_active to true in the config table. This causes all replication to pause between 12:30am and 2:30am on the morning of any DST change day. These times can be adjusted if needed using the dst_start and dst_end columns in the refresh_config_inserter or refresh_config_updater table accordingly.
+IMPORTANT: If a transaction on the source lasts longer than the interval the incremental jobs run, rows can be missed because the control field's time or id will be the time or id of the transactions' start. Be sure and set a boundary value for your tables that ensures all transactions have completed for that time or integer interval before replication tries to pull its values. The default is 10 minutes for time based and 1 for serial.
 Also be aware that if you stop incremental replication permanently on a table, all of the source data may not have reached the destination due to the boundary settings and/or other methods that are used to keep incremental replication in a consistent state. Please double-check that all your source data is on the destination before destroying the source.
 
-DML replication replays on the destination every insert, update and delete that happens on the source table. The special "logdel" dml replication does not remove rows that are deleted on the source. Instead it grabs the latest data that was deleted from the source, updates that on the destination and logs a timestamp of when it was deleted from the source (special destination timestamp field is called *mimeo_source_deleted* to try and keep it from conflicting with any existing column names). Be aware that for logdel, if you delete a row and then re-use that primary/unique key value again, you will lose the preserved, deleted row on the destination. Doing otherwise would either violate the key constraint or not replicate the new data.
+**DML replication** replays on the destination every insert, update and delete that happens on the source table. The special "logdel" dml replication does not remove rows that are deleted on the source. Instead it grabs the latest data that was deleted from the source, updates that on the destination and logs a timestamp of when it was deleted from the source (special destination timestamp field is called *mimeo_source_deleted* to try and keep it from conflicting with any existing column names). Be aware that for logdel, if you delete a row and then re-use that primary/unique key value again, you will lose the preserved, deleted row on the destination. Doing otherwise would either violate the key constraint or not replicate the new data.
 
 There is also a plain table replication method that always does a truncate and refresh every time it is run, but doesn't use the view swap method that snapshot does. It just uses a normal table as the destination. It requires no primary keys, control columns or triggers on the source table. It is not recommended to use this refresh method for a regular refresh job if possible since it is much less efficient. What this is ideal for is a development database where you just want to pull data from production on an as-needed basis and be able to edit things on the destination. Since it requires no write access on the source database, you can safely connect to your production system to grab data (as long as you set permissions properly). It has options available for dealing with foreign key constraints and resetting sequences on the destination.
 
@@ -20,6 +21,8 @@ The **p_condition** option in the maker functions (and the **condition** column 
 
     SELECT mimeo.snapshot_maker(..., p_condition := 'WHERE col1 > 4 AND col2 <> ''test''');
     SELECT mimeo.dml_maker (..., p_condition := ', table2, table3 WHERE source_table.col1 = table2.col1 AND table1.col3 = table3.col3');
+
+You can use views as source tables, but only in certain conditions. Snapshot, Table & Incremental replication all support views, but both DML-based replication methods do not. Also, for updater replication, you must manually provide the primary/unique key column names & types via the special parameters to its maker function. Otherwise it tries to look them up in the system catalog and fails (since views have no pk catalog entry).
 
 Mimeo uses the **pg_jobmon** extension to provide an audit trail and monitoring capability. If you're having any problems with mimeo working, check the job logs that pg_jobmon creates. https://github.com/omniti-labs/pg_jobmon
 
@@ -29,20 +32,24 @@ To aid in automatically running refresh jobs more easily, a python script is inc
 
 The p_debug argument for any function that has it will output more verbose feedback to show what that job is doing. Most of this is also logged with pg_jobmon, but this is a quick way to see detailed info immediately.
 
-### Adding/Removing Columns with DML Replication
+### Adding/Removing Columns after initial setup
 
-Adding and/or removing columns on the source database must be done carefully, and in a specific order, with DML replication types (dml & logdel) to avoid errors.
+Adding and/or removing columns on the source database must be done carefully, and in a specific order, to avoid errors. Except for the snapshot replication method (which automatically replicates column changes), the columns should always be added on the destination table first and then the source. And the opposite should be done for removing a column you no longer want on either system (source first, destination last). The columns copied over during replication are always determined by what the source has, so if the source has columns the destination doesn't, replication will fail.
+Since the source database is used as the canonical schema, this means the destination can actually have columns the source does not (and logdel replication shows this in action).
+There is a function available that can help monitor for when source columns change. See check_source_columns() in Maintenance Functions.
+
+Additional consideration must be taken with with Logdel Replication:
 
 When adding a column, follow this order:
 
 1. Add to destination table
-2. Add to the source queue table 
+2. Add to the source queue table (logdel only)
 3. Add to the source table
 
 When removing a column, follow this order:
 
 1. Remove from source table
-2. Remove from the source queue table
+2. Remove from the source queue table (logdel only)
 3. Remove from the destination table (if desired. It can be left for historical records with no problems.)
 
 ### Dblink Mapping Setup
@@ -71,8 +78,8 @@ Extension Objects
 *dml_maker(p_src_table text, p_dblink_id int, p_dest_table text DEFAULT NULL, p_index boolean DEFAULT true, p_filter text[] DEFAULT NULL, p_condition text DEFAULT NULL, p_pulldata boolean DEFAULT true, p_pk_name text[] DEFAULT NULL, p_pk_type text[] DEFAULT NULL, p_debug boolean DEFAULT false)*  
  * Function to automatically setup dml replication for a table. See setup instructions above for permissions that are needed on source database. By default source and destination table will have same schema and table names.  
  * Source table must have a primary key or unique index. Either the primary key or a unique index (first in alphabetical order if more than one) on the source table will be obtained automatically. Columns of primary/unique key cannot be arrays nor can they be an expression.  
+ * The trigger function created on the source table has the SECURITY DEFINER flag set. This allows any writes to the source table to be able to write to the queue table as well.
  * If destination table already exists, no data will be pulled from the source. You can use the refresh_dml() 'repull' option to truncate the destination table and grab all the source data.  
- * The queue table and trigger function on the source database will have permissions set to allow any current roles with write privileges on the source table to use them. If any further privileges are changed on the source table, the queue and trigger function will have to have their privileges adjusted manually.
  * Multiple destinations are supported for a single source table but there is a hard limit of 100 destinations. Be aware that doing so places multiple triggers on the source table which will in turn be writing to multiple queue tables to track changes. This can cause noticable performance penalties depending on the level of write traffic on the source table.
  * p_dblink_id is the data_source_id from the dblink_mapping_mimeo table for where the source table is located.  
  * p_dest_table, an optional argument,  is to set a custom destination table. Be sure to schema qualify it if needed.
@@ -90,7 +97,7 @@ Extension Objects
  * p_type determines whether it is time-based or serial-based incremental replication. Valid values are: "time" or "serial".
  * p_control_field is the column which is used as the control field (a timestamp or integer column that is new for every insert).
  * p_dblink_id is the data_source_id from the dblink_mapping_mimeo table for where the source table is located.  
- * p_boundary, an optional argument, is a boundary value to prevent records being missed at the upper boundary of the batch. Argument type is text, but must be able to be converted to an interval for time-based and an integer for serial-based. This is mostly only relevant for time based replication. Set this to a value that will ensure all inserts will have finished for that time period when the replication runs. For time based the default is 10 minutes which means the destination may always be 10 minutes behind the source but that also means that all inserts on the source will have finished by the time 10 minutes has passed. For serial based replication, the default is zero. If your serial column is based on a sequence you shouldn't have to change this. The upper boundary will always be one less than the max at the time replication runs. If it's not based on a sequence, you'll have to set this to a value to ensure that the source is done inserting that range of numerical values by the time replication runs. For example, if you set this to 10, the destination will always be one less than "max(source_control_col) - 10" behind the source.
+ * p_boundary, an optional argument, is a boundary value to prevent records being missed at the upper boundary of the batch. Argument type is text, but must be able to be converted to an interval for time-based and an integer for serial-based. This is mostly only relevant for time based replication. Set this to a value that will ensure all inserts will have finished for that time period when the replication runs. For time based the default is 10 minutes which means the destination may always be 10 minutes behind the source but that also means that all inserts on the source will have finished by the time 10 minutes has passed. For serial based replication, the default is 10. If your serial column is based on a sequence you should be able to change this to zero safely. The upper boundary will always be one less than the max at the time replication runs. If it's not based on a sequence, you'll have to set this to a value to ensure that the source is done inserting that range of numerical values by the time replication runs. For example, if you set this to 10, the destination will always be one less than "max(source_control_col) - 10" behind the source.
  * p_dest_table, an optional argument,  is to set a custom destination table. Be sure to schema qualify it if needed.
  * p_index, an optional argument, sets whether to recreate all indexes that exist on the source table on the destination. Defaults to true. Note this is only applies during replication setup. Future index changes on the source will not be propagated.
  * p_filter, an optional argument, is an array list that can be used to designate only specific columns that should be used for replication. Be aware that if this option is used, indexes cannot be replicated from the source because there is currently no easy way to determine all types of indexes that may be affected by the columns that are excluded.
@@ -100,8 +107,8 @@ Extension Objects
 *logdel_maker(p_src_table text, p_dblink_id int, p_dest_table text DEFAULT NULL, p_index boolean DEFAULT true, p_filter text[] DEFAULT NULL, p_condition text DEFAULT NULL, p_pulldata boolean DEFAULT true, p_pk_name text[] DEFAULT NULL, p_pk_type text[] DEFAULT NULL, p_debug boolean DEFAULT false)*  
  * Function to automatically setup logdel replication for a table. See setup instructions above for permissions that are needed on source database. By default source and destination table will have same schema and table names.  
  * Source table must have a primary key or unique index. Either the primary key or a unique index (first in alphabetical order if more than one) on the source table will be obtained automatically. Columns of primary/unique key cannot be arrays nor can they be an expression.  
+ * The trigger function created on the source table has the SECURITY DEFINER flag set. This allows any writes to the source table to be able to write to the queue table as well.
  * If destination table already exists, no data will be pulled from the source. You can use the refresh_logdel() 'repull' option to truncate the destination table and grab all the source data.
- * The queue table and trigger function on the source database will have permissions set to allow any current roles with write privileges on the source table to use them. If any further privileges are changed on the source table, the queue and trigger function will have to have their privileges adjusted manually.
  * Multiple destinations are supported for a single source table but there is a hard limit of 100 destinations. Be aware that doing so places multiple triggers on the source table which will in turn be writing to multiple queue tables to track changes. This can cause noticable performance penalties depending on the level of write traffic on the source table.
  * p_dblink_id is the data_source_id from the dblink_mapping_mimeo table for where the source table is located.  
  * p_dest_table, an optional argument,  is to set a custom destination table. Be sure to schema qualify it if needed.
@@ -140,7 +147,7 @@ Extension Objects
  * p_type determines whether it is time-based or serial-based incremental replication. Valid values are: "time" or "serial".
  * p_control_field is the column which is used as the control field (a timestamp or integer column that is new for every insert AND update).
  * p_dblink_id is the data_source_id from the dblink_mapping_mimeo table for where the source table is located.  
- * p_boundary, an optional argument, is a boundary value to prevent records being missed at the upper boundary of the batch. Argument type is text, but must be able to be converted to an interval for time-based and an integer for serial-based. This is mostly only relevant for time based replication. Set this to a value that will ensure all inserts will have finished for that time period when the replication runs. For time based the default is 10 minutes which means the destination may always be 10 minutes behind the source but that also means that all inserts on the source will have finished by the time 10 minutes has passed. For serial based replication, the default is zero. If your serial column is based on a sequence you shouldn't have to change this. The upper boundary will always be one less than the max at the time replication runs. If it's not based on a sequence, you'll have to set this to a value to ensure that the source is done inserting that range of numerical values by the time replication runs. For example, if you set this to 10, the destination will always be one less than "max(source_control_col) - 10" behind the source.
+ * p_boundary, an optional argument, is a boundary value to prevent records being missed at the upper boundary of the batch. Argument type is text, but must be able to be converted to an interval for time-based and an integer for serial-based. This is mostly only relevant for time based replication. Set this to a value that will ensure all inserts will have finished for that time period when the replication runs. For time based the default is 10 minutes which means the destination may always be 10 minutes behind the source but that also means that all inserts on the source will have finished by the time 10 minutes has passed. For serial based replication, the default is 10. If your serial column is based on a sequence you should be able to change this to zero safely. The upper boundary will always be one less than the max at the time replication runs. If it's not based on a sequence, you'll have to set this to a value to ensure that the source is done inserting that range of numerical values by the time replication runs. For example, if you set this to 10, the destination will always be one less than "max(source_control_col) - 10" behind the source.
  * p_dest_table, an optional argument,  is to set a custom destination table. Be sure to schema qualify it if needed.
  * p_index, an optional argument, sets whether to recreate all indexes that exist on the source table on the destination. Defaults to true. Note this is only applies during replication setup. Future index changes on the source will not be propagated.
  * p_filter, an optional argument, is an array list that can be used to designate only specific columns that should be used for replication. Be aware that if this option is used, indexes cannot be replicated from the source because there is currently no easy way to determine all types of indexes that may be affected by the columns that are excluded. The primary/unique key used to determine row identity will still be replicated, however, because there are checks in place to ensure those columns are not excluded.
@@ -201,7 +208,7 @@ Extension Objects
 *dml_destroyer(p_dest_table text, p_keep_table boolean DEFAULT true)*  
  * Function to automatically remove a dml replication table from the destination. This will also automatically remove the associated objects from the source database if the dml_maker() function was used to create it.  
  * p_keep_table is an optional, boolean parameter to say whether you want to keep or destroy your destination database table. Defaults to true to help prevent you accidentally destroying the destination when you didn't mean to. 
- * Be aware that only the owner of a table can drop triggers, so this function will fail if the source database mimeo role does not own the source table. This is the way PostgreSQL permissions are currently setup and there's nothing I can do about it.
+ * Be aware that only the owner of a table can drop triggers, so this function will fail if the source database mimeo role does not own the source table. Dropping the mimeo trigger first should allow the destroyer function to run successfully and clean the rest of the objects up. This is the way PostgreSQL permissions are currently setup and there's nothing I can do about it.
 
 *inserter_destroyer(p_dest_table text, p_keep_table boolean DEFAULT true)*  
  * Function to automatically remove an inserter replication table from the destination.  
@@ -210,7 +217,7 @@ Extension Objects
 *logdel_destroyer(p_dest_table text, p_keep_table boolean DEFAULT true)*  
  * Function to automatically remove a logdel replication table from the destination. This will also automatically remove the associated objects from the source database if the dml_maker() function was used to create it.  
  * p_keep_table is an optional, boolean parameter to say whether you want to keep or destroy your destination database table. Defaults to true to help prevent you accidentally destroying the destination when you didn't mean to. 
- * Be aware that only the owner of a table can drop triggers, so this function will fail if the source database mimeo role does not own the source table. This is the way PostgreSQL permissions are currently setup and there's nothing I can do about it.
+ * Be aware that only the owner of a table can drop triggers, so this function will fail if the source database mimeo role does not own the source table. Dropping the mimeo trigger first should allow the destroyer function to run successfully and clean the rest of the objects up. This is the way PostgreSQL permissions are currently setup and there's nothing I can do about it.
 
 *snapshot_destroyer(p_dest_table text, p_keep_table boolean DEFAULT true)*  
  * Function to automatically remove a snapshot replication table from the destination.  
@@ -238,6 +245,7 @@ Extension Objects
 
 *check_missing_source_tables(p_data_source_id int DEFAULT NULL, OUT schemaname text, OUT tablename text, OUT data_source int) RETURNS SETOF record*
  * Provides monitoring capability for situations where all tables on source should be replicated.
+ * Note this does not check for source views.
  * p_data_source_id - optional parameter to check one specific data source. Otherwise, all sources listed in dblink_mapping_mimeo table are checked.
  * Returns a record value so WHERE conditions can be used to ignore tables that aren't desired.
 
@@ -248,6 +256,17 @@ Extension Objects
  * Does not check if destination has columns that source does not.
  * p_data_source_id - optional parameter to check one specific data source. Otherwise, all sources listed in dblink_mapping_mimeo table are checked.
  * Returns a record value so WHERE conditions can be used to ignore tables and/or columns that don't matter for your situation.
+
+*concurrent_lock_check(p_dest_table text, p_lock_wait int DEFAULT NULL) RETURNS boolean*
+ * Mimeo uses the advisory lock system to ensure concurrent runs of a replication job do not occur. You can use this function to obtain a lock if one is available.
+ * This function works like the pg_try_advisory_xact_lock() function, returning true if a lock was able to be obtained and false if it was not. So if it returns false, your app must be able to handle that failure scenario and either fail gracefully or retry. A delay between retries is highly recommendend and the length of that delay should be determined by how long a refresh run of the given table usually takes.
+ * This lock must be obtained before operating on any destination table being maintained by mimeo. Failure to do so could result in a deadlock. An example of this is when a column filter is in place to not replicate all table columns, or the destination has additional columns, and you need to edit the destination table via another method and not interfere with the normal replication jobs. 
+ * p_dest_table - Destination table to obtain a lock for
+ * p_lock_wait - set a specified period of time to wait for the advisory lock before giving up. The following are valid values:
+   * NULL (default value if not set): Do not wait at all for an advisory lock and immediately return FALSE if one cannot be obtained.
+   * > 0: Keep retrying to obtain an advisory lock for the given table for this number of seconds before giving up and returning FALSE. If lock is obtained in this time period, will immediately return TRUE.
+   * <= 0: Keep retrying indefinitely to obtain an advisory lock. Will only return when the lock is obtained and returns TRUE. Ensure your code handles this condition properly to avoid infinite waits.
+
 
 ### Tables
 
@@ -266,10 +285,10 @@ Extension Objects
     dest_table      - Tablename on destination database. If not public, should be schema qualified
     type            - Type of replication. Must of one of the following values: snap, inserter_time, inserter_serial, updater_time, updater_serial, dml, logdel
     dblink          - Foreign key on the data_source_id column from dblink_mapping_mimeo table
-    last_run        - Timestamp of the last run of the job. Used by run_refresh() to know when to do the next run of a job.
+    last_run        - Timestamp of the last run of the job. Used by run_refresh,py to know when to do the next run of a job.
     filter          - Array containing specific column names that should be used in replication.
     condition       - Used to set criteria for specific rows that should be replicated. See additional notes in **About** section above.
-    period          - Interval used for the run_refresh() function to indicate how often this refresh job should be run at a minimum
+    period          - Interval used for the run_refresh.py script to indicate how often this refresh job should be run at a minimum
     batch_limit     - Limit the number of rows to be processed for each run of the refresh job. If left NULL (the default), all new rows are fetched every refresh.
     jobmon          - Boolean to determine whether to use pg_jobmon extension to log replication steps. 
                       Maker functions set to true by default if it is installed. Otherwise defaults to false.
@@ -361,7 +380,7 @@ Extension Objects
  * A python script to automatically run replication for tables that have their ''period'' set in the config table.
  * This script can be run as often as needed and refreshes will only fire if their interval period has passed.
  * By default, refreshes are run sequentially in ascending order of their last_run value. Parallel option is available.
- * --connection (-c)  Option to set the psycopg connection string to the database. Default is "host=localhost".
+ * --connection (-c)  Option to set the psycopg connection string to the database. Default is "host=" (local socket).
  * --type (-t)  Option to set which type of replication to run (snap, inserter, updater, dml, logdel, table). Default is all types.
  * --batch_limit (-b)  Option to set how many tables to replicate in a single run of the script. Default is all jobs scheduled to run at time script is run.
  * --jobs (-j) Allows parallel running of replication jobs. Set this equal to the number of processors you want to use to allow that many jobs to start simultaneously (uses multiprocessing library, not threading).
