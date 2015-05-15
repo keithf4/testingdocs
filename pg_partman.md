@@ -77,18 +77,18 @@ A superuser must be used to run all these functions in order to set privileges &
  * p_parent_table - the existing parent table. MUST be schema qualified, even if in public schema.
  * p_control - the column that the partitioning will be based on. Must be a time or integer based column.
  * p_type - one of the following values to set the partitioning type that will be used:
-    + time          
+    + **time**
         - Create a time-based partition set using a predefined interval below. 
         - The number of partitions most efficiently managed behind and ahead of the current one is determined by the **premake** config value (default of 4 means data for 4 previous and 4 future partitions are handled best).
         - *Beware setting the premake value too high as that will lessen the efficiency boost*.
         - Inserts to the parent table outside the premake window will go to the proper child table if it exists, but performance may be degraded due to the higher overhead of handling that condition.
         - If the child table does not exist for that time value, the row will go to the parent. 
         - Child table creation & trigger function is kept up to date by `run_maintenance()` function.
-    + time-custom   
+    + **time-custom**
         - Allows use of any time interval instead of the predefined ones below. Works the same as "time".
         - Note this method uses a lookup table as well as a dynamic insert statement, so performance will not be as good as the predefined intervals. So, while it is more flexible, it sacrifices speed.
         - Child table creation is kept up to date by `run_maintenance()` function.
-    + id            
+    + **id**
         - Create a serial/id-based partition set. Same functionality & use of premake value as the "time" method.
         - By default, when the id value reaches 50% of the max value for that partition, it will automatically create the next partition in sequence if it doesn't yet exist. This can be changed to use `run_maintenance()` instead. See the notes for this function below.
         - Note that the 50% rule is NOT true if the id set is sub-partitioned. Then `run_maintenance()` must be used.
