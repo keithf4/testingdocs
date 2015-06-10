@@ -94,16 +94,16 @@ A superuser must be used to run all these functions in order to set privileges &
         - Note that the 50% rule is NOT true if the id set is sub-partitioned. Then `run_maintenance()` must be used.
         - Only supports id values greater than or equal to zero.
  * `p_interval` - the time or numeric range interval for each partition. No matter the partitioning type, value must be given as text. The generic intervals of "yearly -> quarter-hour" are for the "time" type and allow better performance than using an arbitrary time interval (time-custom).
-    + yearly          - One partition per year
-    + quarterly       - One partition per yearly quarter. Partitions are named as YYYYqQ (ex: 2012q4)
-    + monthly         - One partition per month
-    + weekly          - One partition per week. Follows ISO week date format (http://en.wikipedia.org/wiki/ISO_week_date). Partitions are named as IYYYwIW (ex: 2012w36)
-    + daily           - One partition per day
-    + hourly          - One partition per hour
-    + half-hour       - One partition per 30 minute interval on the half-hour (1200, 1230)
-    + quarter-hour    - One partition per 15 minute interval on the quarter-hour (1200, 1215, 1230, 1245)
-    + \<interval\>      - For the time-custom partitioning type, this can be any interval value that is valid for the PostgreSQL interval data type. Do not type cast the parameter value, just leave as text.
-    + \<integer\>       - For ID based partitions, the integer value range of the ID that should be set per partition. Enter this as an integer in text format ('100' not 100). Must be greater than or equal to 10.
+    + *yearly*          - One partition per year
+    + *quarterly*       - One partition per yearly quarter. Partitions are named as YYYYqQ (ex: 2012q4)
+    + *monthly*         - One partition per month
+    + *weekly*          - One partition per week. Follows ISO week date format (http://en.wikipedia.org/wiki/ISO_week_date). Partitions are named as IYYYwIW (ex: 2012w36)
+    + *daily*           - One partition per day
+    + *hourly*          - One partition per hour
+    + *half-hour*       - One partition per 30 minute interval on the half-hour (1200, 1230)
+    + *quarter-hour*    - One partition per 15 minute interval on the quarter-hour (1200, 1215, 1230, 1245)
+    + *\<interval\>*      - For the time-custom partitioning type, this can be any interval value that is valid for the PostgreSQL interval data type. Do not type cast the parameter value, just leave as text.
+    + *\<integer\>*       - For ID based partitions, the integer value range of the ID that should be set per partition. Enter this as an integer in text format ('100' not 100). Must be greater than or equal to 10.
  * `p_constraint_cols` - an optional array parameter to set the columns that will have additional constraints set. See the **About** section above for more information on how this works and the **apply_constraints()** function for how this is used.
  * `p_premake` - is how many additional partitions to always stay ahead of the current partition. Default value is 4. This will keep at minimum 5 partitions made, including the current one. For example, if today was Sept 6th, and `premake` was set to 4 for a daily partition, then partitions would be made for the 6th as well as the 7th, 8th, 9th and 10th. As stated above, this value also determines how many partitions outside of the current one the partitioning trigger function will handle most efficiently (behind & ahead) and also influences which old partitions get additional constraints applied. Note some intervals may occasionally cause an extra partition to be premade or one to be missed due to leap years, differing month lengths, daylight savings (on non-UTC systems), etc. This won't hurt anything and will self-correct. If partitioning ever falls behind the `premake` value, normal running of `run_maintenance()` and data insertion to id-based tables should automatically catch things up.
  * `p_use_run_maintenance` - Used to tell partman whether you'd like to override the default way that child partitions are created. Set this value to TRUE to allow you to use the `run_maintenance()` function, without any table paramter, to create new child tables for serial partitioning instead of using 50% method mentioned above. Time based partitining MUST use `run_maintenance()`, so either leave this value true or call the `run_maintenance()` function directly on a partition set by passing the parent table as a parameter. See **run_mainteanance** in Maintenance Functions section below for more info.
