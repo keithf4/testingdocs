@@ -301,9 +301,9 @@ A superuser must be used to run all these functions in order to set privileges &
 
 Stores all configuration data for partition sets mananged by the extension. The only columns in this table that should ever need to be manually changed are:
 
- 1 **`retention`**, **`retention_schema`**, **`retention_keep_table`** & **`retention_keep_index`** to configure the partition set's retention policy 
- 2 **`constraint_cols`** to have partman manage additional constraints 
- 3 **`premake`**, **`inherit_fk`**, **`use_run_maintenance`** & **`jobmon`** to change the default behavior.
+ 1. **`retention`**, **`retention_schema`**, **`retention_keep_table`** & **`retention_keep_index`** to configure the partition set's retention policy 
+ 2. **`constraint_cols`** to have partman manage additional constraints 
+ 3. **`premake`**, **`inherit_fk`**, **`use_run_maintenance`** & **`jobmon`** to change the default behavior.
 
 The rest are managed by the extension itself and should not be changed unless absolutely necessary.
 
