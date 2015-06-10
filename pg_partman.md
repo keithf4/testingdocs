@@ -102,8 +102,8 @@ A superuser must be used to run all these functions in order to set privileges &
     + hourly          - One partition per hour
     + half-hour       - One partition per 30 minute interval on the half-hour (1200, 1230)
     + quarter-hour    - One partition per 15 minute interval on the quarter-hour (1200, 1215, 1230, 1245)
-    + <interval>      - For the time-custom partitioning type, this can be any interval value that is valid for the PostgreSQL interval data type. Do not type cast the parameter value, just leave as text.
-    + <integer>       - For ID based partitions, the integer value range of the ID that should be set per partition. Enter this as an integer in text format ('100' not 100). Must be greater than or equal to 10.
+    + \<interval\>      - For the time-custom partitioning type, this can be any interval value that is valid for the PostgreSQL interval data type. Do not type cast the parameter value, just leave as text.
+    + \<integer\>       - For ID based partitions, the integer value range of the ID that should be set per partition. Enter this as an integer in text format ('100' not 100). Must be greater than or equal to 10.
  * `p_constraint_cols` - an optional array parameter to set the columns that will have additional constraints set. See the **About** section above for more information on how this works and the **apply_constraints()** function for how this is used.
  * `p_premake` - is how many additional partitions to always stay ahead of the current partition. Default value is 4. This will keep at minimum 5 partitions made, including the current one. For example, if today was Sept 6th, and `premake` was set to 4 for a daily partition, then partitions would be made for the 6th as well as the 7th, 8th, 9th and 10th. As stated above, this value also determines how many partitions outside of the current one the partitioning trigger function will handle most efficiently (behind & ahead) and also influences which old partitions get additional constraints applied. Note some intervals may occasionally cause an extra partition to be premade or one to be missed due to leap years, differing month lengths, daylight savings (on non-UTC systems), etc. This won't hurt anything and will self-correct. If partitioning ever falls behind the `premake` value, normal running of `run_maintenance()` and data insertion to id-based tables should automatically catch things up.
  * `p_use_run_maintenance` - Used to tell partman whether you'd like to override the default way that child partitions are created. Set this value to TRUE to allow you to use the `run_maintenance()` function, without any table paramter, to create new child tables for serial partitioning instead of using 50% method mentioned above. Time based partitining MUST use `run_maintenance()`, so either leave this value true or call the `run_maintenance()` function directly on a partition set by passing the parent table as a parameter. See **run_mainteanance** in Maintenance Functions section below for more info.
@@ -124,7 +124,7 @@ A superuser must be used to run all these functions in order to set privileges &
  * Note that for ID sub-partitioning, future partition maintenance must be done with run_maintenace() and does not use the 50% rule mentioned above.
 
 
-*`partition_data_time(p_parent_table text, p_batch_count int DEFAULT 1, p_batch_interval interval DEFAULT NULL, p_lock_wait numeric DEFAULT 0, p_order text DEFAULT 'ASC')`*
+*`partition_data_time(p_parent_table text, p_batch_count int DEFAULT 1, p_batch_interval interval DEFAULT NULL, p_lock_wait numeric DEFAULT 0, p_order text DEFAULT 'ASC') RETURNS bigint`*
 
  * This function is used to partition data that may have existed prior to setting up the parent table as a time-based partition set, or to fix data that accidentally gets inserted into the parent.
  * If the needed partition does not exist, it will automatically be created. If the needed partition already exists, the data will be moved there.
@@ -138,7 +138,7 @@ A superuser must be used to run all these functions in order to set privileges &
  * Returns the number of rows that were moved from the parent table to partitions. Returns zero when parent table is empty and partitioning is complete.
 
 
-*`partition_data_id(p_parent_table text, p_batch_count int DEFAULT 1, p_batch_interval int DEFAULT NULL, p_lock_wait numeric DEFAULT 0)`*
+*`partition_data_id(p_parent_table text, p_batch_count int DEFAULT 1, p_batch_interval int DEFAULT NULL, p_lock_wait numeric DEFAULT 0, p_order text DEFAULT 'ASC') RETURNS bigint`*
 
  * This function is used to partition data that may have existed prior to setting up the parent table as a serial id partition set, or to fix data that accidentally gets inserted into the parent.
  * If the needed partition does not exist, it will automatically be created. If the needed partition already exists, the data will be moved there.
@@ -297,7 +297,7 @@ A superuser must be used to run all these functions in order to set privileges &
 
 ### Tables
 
-*`part_config`*
+**`part_config`**
 
 Stores all configuration data for partition sets mananged by the extension. The only columns in this table that should ever need to be manually changed are:
 
@@ -314,44 +314,44 @@ The rest are managed by the extension itself and should not be changed unless ab
  - `partition_interval`
     - Text type value that determines the interval for each partition. 
     - Must be a value that can either be cast to the interval or bigint data types.
- - control
+ - `control`
     - Column used as the control for partition constraints. Must be a time or integer based column.
- - constraint_cols
+ - `constraint_cols
     - Array column that lists columns to have additional constraints applied. See **About** section for more information on how this feature works.
- - premake
+ - `premake`
     - How many partitions to keep pre-made ahead of the current partition. Default is 4.
     - Manages number of partitions which are handled most efficiently by trigger. See `create_parent()` function for more info.
     - Manages which old tables get additional constraints set if configured to do so. See **About** section for more info.
- - inherit_fk
+ - `inherit_fk`
     - Set whether `pg_partman` manages inheriting foreign keys from the parent table to all children.
     - Defaults to TRUE. Can be set with the `create_parent()` function at creation time as well.
- - retention
+ - `retention`
     - Text type value that determines how old the data in a child partition can be before it is dropped. 
     - Must be a value that can either be cast to the interval or bigint data types. 
     - Leave this column NULL (the default) to always keep all child partitions. See **About** section for more info.
- - retention_schema
+ - `retention_schema`
     - Schema to move tables to as part of the retentions system instead of dropping them. Overrides retention_keep_* options.
- - retention_keep_table
+ - `retention_keep_table`
     - Boolean value to determine whether dropped child tables are kept or actually dropped. 
     - Default is TRUE to keep the table and only uninherit it. Set to FALSE to have the child tables removed from the database completely.
- - retention_keep_index
+ - `retention_keep_index`
     - Boolean value to determine whether indexes are dropped for child tables that are uninherited. 
     - Default is TRUE. Set to FALSE to have the child table's indexes dropped when it is uninherited.
- - datetime_string
+ - `datetime_string`
     - For time-based partitioning, this is the datetime format string used when naming child partitions. 
- - use_run_maintenance
+ - `use_run_maintenance`
     - Boolean value that tells `run_maintenance()` function whether it should manage new child table creation automatically when `run_maintenance()` is called without a table parameter. 
     - If `run_maintenance()` is given a table parameter, this option is ignored and maintenace will always run.
     - Defaults to TRUE for time-based partitioning.
     - Defaults to FALSE for single-level serial-based partitioning and can be changed to TRUE if desired. 
     - If changing an existing serial partitioned set from FALSE to TRUE, you must run create_id_function('parent_schema.parent_table') to change the trigger function so it no longer creates new partitions.
     - Defaults to TRUE for all sub-partition tables
- - jobmon
+ - `jobmon`
     - Boolean value to determine whether the `pg_jobmon` extension is used to log/monitor partition maintenance. Defaults to true.
- - undo_in_progress
+ - `undo_in_progress`
     - Set by the undo_partition functions whenever they are run. If true, this causes all partition creation and retention management by the `run_maintenance()` function to stop. Default is false.
 
-*`part_config_sub`*
+**`part_config_sub`**
 
  * Stores all configuration data for sub-partitioned sets managed by `pg_partman`.
  * The **`sub_parent`** column is the parent table of the subpartition set and all other columns govern how that parent's children are subpartitioned.
