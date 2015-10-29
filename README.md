@@ -1,90 +1,86 @@
-[![PGXN version](https://badge.fury.io/pg/pg_partman.svg)](https://badge.fury.io/pg/pg_partman)
+# A Simple Document API For PostgreSQL
 
-PG Partition Manager
-====================
+This project is a fork of Rob Conery's pg_doc_api (https://github.com/robconery/pg_docs_api). He originally wrote it in PLV8, but mentioned in his docs that a plpgsql conversion would be appreciated, so I gave it a shot. The aim seems to be to make an interface more like mongodb and other document stores where things "just work" when you throw schemaless data at it. The advantage of postgres is of course you gain ACID compliance and all the advantages of a relational model along with that schemaless flexibility.
 
-pg_partman is an extension to create and manage both time-based and serial-based table partition sets. Sub-partitoning is also supported. Child table & trigger function creation is all managed by the extension itself. Tables with existing data can also have their data partitioned in easily managed smaller batches. Optional retention policy can automatically drop partitions no longer needed.
-A background worker (BGW) process is included to automatically run partition maintenance without the need of an external scheduler (cron, etc) in most cases.
+## Requirements
 
-All bug reports, feature requests and general questions can be directed to the Issues section on Github. Please feel free to post here no matter how minor you may feel your issue or question may be. - https://github.com/keithf4/pg_partman/issues
+The only requirement so far is PostgreSQL 9.4 due to using the new JSONB data type.
 
-INSTALLATION
-------------
-Requirement: PostgreSQL 9.4 or greater
+The original plv8 functions are still available if desired and you must have PLV8 installed already.
 
-Recommended: pg_jobmon (>=v1.3.0). PG Job Monitor will automatically be used if it is installed and setup properly.
-https://github.com/omniti-labs/pg_jobmon
+## Installation
 
-In the directory where you downloaded pg_partman, run
+This code is managed as an extension. So you just have to run
+
+    make
 
     make install
 
-If you do not want the background worker compiled and just want the plain PL/PGSQL functions, you can run this instead:
+And then 
 
-    make NO_BGW=1 install
+    CREATE EXTENSION pg_docs_api;
 
-The background worker must be loaded on database start by adding the library to shared_preload_libraries in postgresql.conf
+While logged into the database. If you'd like to try the original PLV8 functions, you can pass a flag to the make command
 
-    shared_preload_libraries = 'pg_partman_bgw'     # (change requires restart)
+    make PLV8=1
 
-You can also set other control variables for the BGW in postgresql.conf. "dbname" is required at a minimum for maintenance to run on the given database(s). These can be added/changed at anytime with a simple reload. See the documentation for more details. An example with some of them:
+## Usage
 
-    pg_partman_bgw.interval = 3600
-    pg_partman_bgw.role = 'keith'
-    pg_partman_bgw.dbname = 'keith'
+The following is just for the plgpsql functions. If you'd like info on the original plv8 functions, please see the repo linked above.
 
-Log into PostgreSQL and run the following commands. Schema is optional (but recommended) and can be whatever you wish, but it cannot be changed after installation. If you're using the BGW, the database cluster can be safely started without having the extension first created in the configured database(s). You can create the extension at any time and the BGW will automatically pick up that it exists without restarting the cluster (as long as shared_preload_libraries was set) and begin running maintenance as configured.
+*`create_document(p_tablename text, OUT tablename text, OUT schemaname text) RETURNS record`*
 
-    CREATE SCHEMA partman;
-    CREATE EXTENSION pg_partman SCHEMA partman;
+ * Creates a table used to store your documents. Contains no data.
+ * Your tablename must be schema qualified
+ * The table has the structure below.
+    + id - unique id value given to each document. This value is also always added to the document itself.
+    + body -  the document itself stored as jsonb
+    + search - a tsvector column based on the values in the document used for full-text search (FTS)
+    + created_at - a timestamp of when the document was created
+    + updated_at - a timestamp that is updated whenever the document is updated using the function interfaces
+ * Returns the schema & tablename of the document table it created
+ 
+```
+                                    Table "keith.testing"
+   Column   |           Type           |                      Modifiers                       
+------------+--------------------------+------------------------------------------------------
+ id         | integer                  | not null default nextval('testing_id_seq'::regclass)
+ body       | jsonb                    | not null
+ search     | tsvector                 | 
+ created_at | timestamp with time zone | not null default now()
+ updated_at | timestamp with time zone | not null default now()
+Indexes:
+    "testing_pkey" PRIMARY KEY, btree (id)
+    "testing_body_idx" gin (body jsonb_path_ops)
+    "testing_search_idx" gin (search)
+Triggers:
+    testing_trig BEFORE INSERT OR UPDATE OF body ON testing FOR EACH ROW EXECUTE PROCEDURE update_search()
+```
 
-Functions must either be run as a superuser or you can set the ownership of the extension functions to a superuser role and they will also work (SECURITY DEFINER is set).
+*`save_document(p_tablename text, p_doc_string jsonb) RETURNS jsonb`*
 
-The 1.8.x branch is still available on github if you have PostgreSQL versions 9.1 - 9.3. You will have to install the 1.8.7 tagged release located here: https://github.com/keithf4/pg_partman/releases/tag/v1.8.7 then check the "updates" folder in the latest 2.x.x release to see if there have been any updates to the 1.8.x series since then and apply them. Only bug fixes are being applied to the 1.8.x series and only while versions of PostgreSQL prior to 9.4 are still officially supported themselves. All new development is being done on 2.x.x, so it's advised that you update your PostgreSQL cluster to make managing this extension easier.
-
-UPGRADE
--------
-
-Run "make install" same as above to put the script files and libraries in place. Then run the following in PostgreSQL itself:
-
-    ALTER EXTENSION pg_partman UPDATE TO '<latest version>';
-
-If upgrading from 1.x to 2.x, please see the CHANGELOG or the notes in the update script itself for additional instructions for updating your trigger functions to the newer version and other important considerations for the update.
-
-EXAMPLE
--------
-
-First create a parent table with an appropriate column type for the partitioning type you will do. Apply all defaults, indexes, constraints, privileges & ownership to the parent table and they will be inherited to newly created child tables automatically (not already existing partitions, see docs for how to fix that). Here's one with columns that can be used for either
-
-    CREATE schema test;
-    CREATE TABLE test.part_test (col1 serial, col2 text, col3 timestamptz NOT NULL DEFAULT now());
-
-Then just run the create_parent() function with the appropriate parameters
-
-    SELECT partman.create_parent('test.part_test', 'col3', 'time', 'daily');
-    or
-    SELECT partman.create_parent('test.part_test', 'col1', 'id', '100000');
-
-This will turn your table into a parent table and premake 4 future partitions and also make 4 past partitions. To make new partitions for time-based partitioning, use the run_maintenance() function. Ideally, you'd run this as a cronjob to keep new partitions premade in preparation of new data. Serial based partitioning does not always require run_maintenance() (see doc file below).
-
-This should be enough to get you started. Please see the [pg_partman.md file](doc/pg_partman.md) in the doc folder for more information on the types of partitioning supported and what the parameters in the create_parent() function mean. 
-
-
-TESTING
--------
-This extension can use the pgTAP unit testing suite to evalutate if it is working properly (http://www.pgtap.org).
-WARNING: You MUST increase max_locks_per_transaction above the default value of 64. For me, 128 has worked well so far. This is due to the sub-partitioning tests that create/destroy several hundred tables in a single transaction. If you don't do this, you risk a cluster crash when running subpartitioning tests.
+ * Save a jsonb document to the given table.
+ * If the table does not exist already, it will be created
+ * If an "id" key is given in the document, it will be set as the primary key value
+ * If the given "id" primary key already exists, it will update that row with the given document
+ * If the given "id" does not exist, that row will be added
+ * If an "id" is not given, then the next value in the sequence will be used and automatically added to the document.
+ * The "search" column will automatically be updated with the latest relevant FTS values based on the given document.
+ * The "updated_at" column will automatically be updated to the timestamp at the time save is run.
+ * The function will return a copy of the jsonb document that is given if successfully stored.
+ * WARNING: Until 9.5 is released, the UPSERT used in this function is not 100% transaction safe and may result in deadlocks on a high traffic system. Use with caution.
 
 
-LICENSE AND COPYRIGHT
----------------------
+*'find_document(p_tablename text, p_criteria jsonb, p_orderbykey text DEFAULT 'id', p_orderby text DEFAULT 'ASC') RETURNS SETOF jsonb`*
 
-PG Partition Manager (pg_partman) is released under the PostgreSQL License, a liberal Open Source license, similar to the BSD or MIT licenses.
+ * Searches the given table for documents that contain the given jsonb string and returns the full document(s).
+ * It's pretty much the equivalent of the @> operator when used with two jsonb values.
+ * p_orderbykey allows you to tell it to sort the returned documents by the given key name.
+ * p_orderby allows you to tell it which order to return that sort in. Valid values are "ASC" (the default)  and "DESC".
 
-Copyright (c) 2015 OmniTI, Inc.
 
-Permission to use, copy, modify, and distribute this software and its documentation for any purpose, without fee, and without a written agreement is hereby granted, provided that the above copyright notice and this paragraph and the following two paragraphs appear in all copies.
+*`search_document(p_tablename text, p_query text) RETURNS SETOF jsonb`*
 
-IN NO EVENT SHALL THE AUTHOR BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF THE AUTHOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Performs a full-text search on the given document table for documents containing the given string in their values.
+ * Returns the full jsonb document(s) ranked by relevance.
 
-THE AUTHOR SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS IS" BASIS, AND THE AUTHOR HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
