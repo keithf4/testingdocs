@@ -75,7 +75,7 @@ For converting either time or serial based partition sets, if you have the lower
 
 A note about quarterly partitioning, the to_timestamp() function does not recognize the "Q" format string like to_char() does. Why? You can look in the postgres source and see the reasoning, but it makes no sense to me. I handle this inside the run_maintenance() function if you need a way to do this.
 
-So a query like the following which first extracts the original name then reformats the suffix would work. It doesn't actually do the renaming, it just generates all the ALTER TABLE statements for you for all the child tables in the set. If all of them don't quite have the same pattern for some reason, you can easily just re-run this, editing things as needed, and filter the resulting list of ALTER TABLE statements accordingly. You can then also move the child tables back to their original schema if you moved them as I mentioned in a step above.
+So a query like the following which first extracts the original name then reformats the suffix would work. It doesn't actually do the renaming, it just generates all the ALTER TABLE statements for you for all the child tables in the set. If all of them don't quite have the same pattern for some reason, you can easily just re-run this, editing things as needed, and filter the resulting list of ALTER TABLE statements accordingly.
 
     select 'ALTER TABLE '||n.nspname||'.'||c.relname||' RENAME TO '||substring(c.relname from 1 for 4)||'_p'||to_char(to_timestamp(substring(c.relname from 5), 'YYYYMMDD'), 'IYYY')||'w'||to_char(to_timestamp(substring(c.relname from 5), 'YYYYMMDD'), 'IW')||';'
             from pg_inherits h
