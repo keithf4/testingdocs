@@ -48,7 +48,7 @@ Step 1
 ------
 Disable calls to the run_maintenance() 
 
-If you have any partitions currently maintained by pg_partman, you may be calling this already for them. They should be fine for the period of time this converstion is being done. This is to avoid any issues with only a partial configuration existing during conversion. If you are using the background worker, commenting out the "pg_partman_bgw.dbname" parameter in postgresql.conf and then reloading (SELECT pg_reload_conf();) should be sufficient to stop it from running. If you're running pg_partman on several databases in the cluster and you don't want to stop them all, you can also just remove the one you're doing the migration on from that same parameter.
+If you have any partitions currently maintained by pg_partman, you may be calling this already for them. They should be fine for the period of time this conversion is being done. This is to avoid any issues with only a partial configuration existing during conversion. If you are using the background worker, commenting out the "pg_partman_bgw.dbname" parameter in postgresql.conf and then reloading (SELECT pg_reload_conf();) should be sufficient to stop it from running. If you're running pg_partman on several databases in the cluster and you don't want to stop them all, you can also just remove the one you're doing the migration on from that same parameter.
 
 
 Step 2
