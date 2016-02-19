@@ -476,7 +476,7 @@ Partition by time in smaller intervals for at most 10 partitions in a single run
  * --connection (-c):           Connection string for use by psycopg. Defaults to "host=" (local socket).
  * --freeze (-z):               Sets the FREEZE option to the VACUUM command.
  * --full (-f):                 Sets the FULL option to the VACUUM command. Note that --freeze is not necessary if you set this. Recommend reviewing --dryrun before running this since it will lock all tables it runs against, possibly including the parent.
- *--vacuum_freeze_min_age (-a): By default the script obtains this value from the system catalogs. By setting this, you can override the value obtained from the database. Note this does not change the value in the database, only the value this script uses.
+ * --vacuum_freeze_min_age (-a): By default the script obtains this value from the system catalogs. By setting this, you can override the value obtained from the database. Note this does not change the value in the database, only the value this script uses.
  * --noparent:                  Normally the parent table is included in the list of tables to vacuum if its age(relfrozenxid) is higher than vacuum_freeze_min_age. Set this to force exclusion of the parent table, even if it meets that criteria.
  * --dryrun:                    Show what the script will do without actually running it against the database. Highly recommend reviewing this before running for the first time.
  * --quiet (-q):                Turn off all output.
