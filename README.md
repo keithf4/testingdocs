@@ -1,18 +1,34 @@
-The files in this directory are made to be imported to Grafana via its HTTP import API. The only editing that needs to be done beforehand is to set the name of the datasource at the bottom input section of each file. For example, in the PostgreSQL_API.json file, edit the "value" column at the bottom to match the datasource name in your Grafana instance:
+# Grafana
 
+The Grafana RPM Package can be downloaded and installed from https://grafana.com/grafana/download.
+
+The steps to access the customized dashboards are as follows:
+
+* Connect to Grafana via https://&gt;ip-address&lt;:3000
+* Login as admin/admin
+* Change admin password
+* Add Prometheus datasource
+* Import all 5 dashboards 
+  * PostgreSQL.json
+  * PostgreSQLDetails.json
+  * BloatDetails.json
+  * CRUD_Details.json
+  * TableSize_Details.json
+
+
+### API Import
+
+It is possible it import these graphs through the "import" HTTP API using the following curl command to add some required wrapper information to each json blob. 
 ```
-   "inputs":[  
-      {  
-         "name":"DS_DATABASE1",
-         "type":"datasource",
-         "pluginId":"prometheus",
-         "value":"PROMETHEUS"
-      }
-   ]
+curl --user admin:admin -S "http://localhost:3000/api/dashboards/import" -X POST -H 'Content-Type: application/json;charset=UTF-8' --data-binary "{  \"dashboard\" : $(cat PostgreSQL.json) , \"overwrite\":true, \"inputs\":[  {  \"name\":\"DS_PROMETHEUS\", \"type\":\"datasource\", \"pluginId\":\"prometheus\", \"value\":\"PROMETHEUS\" } ] }"
 ```
+You will likely have to edit the following parts of the above command:
 
-Once that is done, the following curl command can be used to import the dashboards:
+ * Username
+ * Password
+ * Hostname (and port if different from default)
+ * The file to import goes in the $cat() parentheses. In the above example this is "PostgreSQL.json".
+ * The name of your grafana datasource is the final json "value". In the above example this is "PROMETHEUS".
 
-    curl -Ssl "http://admin:admin@localhost:3000/api/dashboards/import" -X POST -H 'Content-Type: application/json;charset=UTF-8' --data-binary "$(cat PostgreSQL_API.json)"
 
-Set username, password & host as necessary. Replace the filename in the $cat() command with the filename of the dashboard being imported.
+
