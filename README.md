@@ -1,6 +1,5 @@
 The files in this directory are made to be imported to Grafana via its HTTP import API. The only editing that needs to be done beforehand is to set the name of the datasource at the bottom input section of each file. For example, in the PostgreSQL_API.json file, edit the "value" column at the bottom to match the datasource name in your Grafana instance:
 
-
    "inputs":[  
       {  
          "name":"DS_DATABASE1",
