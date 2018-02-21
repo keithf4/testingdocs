@@ -9,15 +9,15 @@ Packages available: prometheus2, alertmanager, pgmonitor-prometheus-extras, pgmo
 For non-package installations, Promtheus & Alertmanager can be downloaded from the developer website (https://prometheus.io/download). The minimum expected versions are Prometheus is 2.0 and Alertmanager 0.12.0. The files contained in this repository are assumed to be installed in the following locations with the following names:
 ```
 Prometheus data folder assumed to be /var/lib/ccp_monitoring/prometheus and owned by ccp_monitoring user. If not, edit sysconfig file appropriately.
-crunchy-prometheus-service-el7.conf -> /etc/systemd/system/prometheus.service.d/crunchy-prometheus-service-el7.conf 
-sysconfig.prometheus -> /etc/sysconfig/prometheus
-crunchy-prometheus.yml -> /etc/prometheus/crunchy-prometheus.yml
-auto.d/ProductionDB.yml.example -> /etc/prometheus/auto.d/ProductionDB.yml.example
-crunchy-alert-rules.yml -> /etc/prometheus/crunchy-alert-rules.yml
+- crunchy-prometheus-service-el7.conf -> /etc/systemd/system/prometheus.service.d/crunchy-prometheus-service-el7.conf 
+- sysconfig.prometheus -> /etc/sysconfig/prometheus
+- crunchy-prometheus.yml -> /etc/prometheus/crunchy-prometheus.yml
+- auto.d/ProductionDB.yml.example -> /etc/prometheus/auto.d/ProductionDB.yml.example
+- crunchy-alert-rules.yml -> /etc/prometheus/crunchy-alert-rules.yml
 
 Alertmanager data folder assumed to be /var/lib/ccp_monitoring/alertmanager and owned by ccp_monitoring user. If not, edit sysconfig file appropriately.
-crunchy-alertmanager-service-el7.conf -> /etc/systemd/system/alertmanager.service.d/crunchy-alertmanager-service-el7.conf
-sysconfig.alertmanager -> /etc/sysconfig/alertmanager
+- crunchy-alertmanager-service-el7.conf -> /etc/systemd/system/alertmanager.service.d/crunchy-alertmanager-service-el7.conf
+- sysconfig.alertmanager -> /etc/sysconfig/alertmanager
 ```
 ## Setup (RHEL/CENTOS 7)
 
