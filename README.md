@@ -1,34 +1,55 @@
-# Grafana
+# Setting up Prometheus
 
-The Grafana RPM Package can be downloaded and installed from https://grafana.com/grafana/download.
+## Installation (RHEL/CENTOS 7)
 
-The steps to access the customized dashboards are as follows:
+RPMs are available to Crunchy customers through our access portal. The RPM will take care of all the steps below in the Installation section. From the Setup section onward, the instructions are relevant no matter the installation method.
 
-* Connect to Grafana via https://&gt;ip-address&lt;:3000
-* Login as admin/admin
-* Change admin password
-* Add Prometheus datasource
-* Import all 5 dashboards 
-  * PostgreSQL.json
-  * PostgreSQLDetails.json
-  * BloatDetails.json
-  * CRUD_Details.json
-  * TableSize_Details.json
+Packages available: prometheus2, alertmanager, pgmonitor-prometheus-extras, pgmonitor-alertmanager-extras
 
+For non-package installations, Promtheus & Alertmanager can be downloaded from the developer website (https://prometheus.io/download). The minimum expected versions are Prometheus is 2.0 and Alertmanager 0.12.0. The files contained in this repository are assumed to be installed in the following locations with the following names:
 
-### API Import
+ * crunchy-prometheus-service-el7.conf -> /etc/systemd/system/prometheus.service.d/crunchy-prometheus-service-el7.conf 
+ * sysconfig.prometheus -> /etc/sysconfig/prometheus
+ * crunchy-prometheus.yml -> /etc/prometheus/crunchy-prometheus.yml
+ * auto.d/ProductionDB.yml.example -> /etc/prometheus/auto.d/ProductionDB.yml.example
+ * crunchy-alert-rules.yml -> /etc/prometheus/crunchy-alert-rules.yml
+ * Prometheus data folder assumed to be /var/lib/ccp_monitoring/prometheus and owned by ccp_monitoring user. If not, edit sysconfig file appropriately.
 
-It is possible it import these graphs through the "import" HTTP API using the following curl command to add some required wrapper information to each json blob. 
+ * crunchy-alertmanager-service-el7.conf -> /etc/systemd/system/alertmanager.service.d/crunchy-alertmanager-service-el7.conf
+ * sysconfig.alertmanager -> /etc/sysconfig/alertmanager
+ * Alertmanager data folder assumed to be /var/lib/ccp_monitoring/alertmanager and owned by ccp_monitoring user. If not, edit sysconfig file appropriately.
+
+## Setup (RHEL/CENTOS 7)
+
+* If necessary, modify /etc/systemd/system/prometheus.service.d/crunchy-prometheus-service-el7.conf. See notes in example file for more details.
+* If necessary, modify /etc/systemd/system/alertmanager.service.d/crunchy-alertmanager-service-el7.conf. See notes in example file for more details.
+* If necessary, modify /etc/sysconfig/prometheus to set prometheus startup properties. See notes within the file itself for recommendations.
+* If necessary, modify /etc/sysconfig/alertmanager to set alertmanager startup properties. See notes within the file itself for recommendations.
+* Modify /etc/prometheus/crunchy-prometheus.yml to set scrape interval if different from default. Activate alert rules and alertmanager by uncommenting lines when set as needed. Default service expects config file to be named crunchy-prometheus.yml.
+* Modify /etc/prometheus/crunchy-alertmanager.yml and setup alert target (smtp, sms, etc), receiver and route information. Default service expects config file to be named crunchy-alertmanager.yml
+* Modify /etc/prometheus/crunchy-alert-rules.yml and update rules as needed. Default prometheus config expects file to be named crunchy-alert-rules.yml.
+* Modify /etc/prometheus/auto.d/*.yml.example file(s) to point to exporter services to auto-discover. Copy example file to create as many additional targets as needed. Remove .example suffix when configuration is final and Prometheus will auto-discover.
+
+## Start services (RHEL/CENTOS 7)
 ```
-curl --user admin:admin -S "http://localhost:3000/api/dashboards/import" -X POST -H 'Content-Type: application/json;charset=UTF-8' --data-binary "{  \"dashboard\" : $(cat PostgreSQL.json) , \"overwrite\":true, \"inputs\":[  {  \"name\":\"DS_PROMETHEUS\", \"type\":\"datasource\", \"pluginId\":\"prometheus\", \"value\":\"PROMETHEUS\" } ] }"
+sudo systemctl enable prometheus
+sudo systemctl start prometheus
+sudo systemctl status prometheus
+
+sudo systemctl enable alertmanager
+sudo systemctl start alertmanager
+sudo systemctl status alertmanager
 ```
-You will likely have to edit the following parts of the above command:
 
- * Username
- * Password
- * Hostname (and port if different from default)
- * The file to import goes in the $cat() parentheses. In the above example this is "PostgreSQL.json".
- * The name of your grafana datasource is the final json "value". In the above example this is "PROMETHEUS".
+## Note for packaging (RHEL/CENTOS 7)
 
+The service override files must be placed in the relevant drop-in folder to override the default service files.
 
+    /etc/systemd/system/prometheus.service.d/crunchy-prometheus-service.conf
+    /etc/systemd/system/alertmanager.service.d/crunchy-alertmanager-service.conf
 
+After a daemon-reload, systemd should automatically find these files and the crunchy services should work as intended.
+    
+
+## Setup (RHEL/CENTOS 6)
+TODO
