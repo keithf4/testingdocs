@@ -118,7 +118,7 @@ SELECT 'ALTER TABLE '||inhrelid::regclass||' NO INHERIT '||inhparent::regclass||
  ALTER TABLE partman_test.time_taptest_table_p2019_12_24 NO INHERIT partman_test.time_taptest_table;
 ```
 
-For any partition sets, even those not managed by pg_partman, the next step is that you need to figure out the boundary values of your existing child tables and feed those to the ATTACH PARTITION command used in native partitioning. Since pg_partman uses set naming patterns for all the partition types it manages, there is a built-in function (`show_partition_info()`) that can return the boundary values based on the child table's name. Since the given child table no longer has a parent table after running the above statements, we have to feed that value to the function's `p_parent_table` parameter so it knows how to figure out the proper boundaries. 
+For any partition sets, even those not managed by pg_partman, the next step is that you need to figure out the boundary values of your existing child tables and feed those to the ATTACH PARTITION command used in native partitioning. Since pg_partman uses set naming patterns for all the partition types it manages, there is a built-in function (`show_partition_info()`) that can return the boundary values based on the child table's name. Also because the given child table no longer has a parent table after running the above statements, we have to feed that value to the function's `p_parent_table` parameter so it knows how to figure out the proper boundaries. 
 
 For non-pg_partman partition sets you will have to use some other method to figure out these child boundaries.
 
@@ -144,6 +144,10 @@ Again, as mentioned above, view the `Child Table Property Inheritance` of the do
 ```
 CREATE TABLE partman.partman_test_time_taptest_table (LIKE partman_test.time_taptest_table);
 ALTER TABLE partman.partman_test_time_taptest_table OWNER TO partman_owner;
+```
+Because we had a primary key on our original table, and we can't set that on the parent table, this template table can manage that for us.
+```
+ALTER TABLE partman.partman_test_time_taptest_table ADD PRIMARY KEY (col1);
 ```
 And lastly, for pg_partman, you will need to update the `part_config` (and `part_config_sub` if subpartitioned) tables to account for now being natively partitioned. The value for `template_table` must match the name of the table that was created above.
 ```
