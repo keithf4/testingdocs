@@ -132,6 +132,7 @@ keith@keith=# SELECT partman.create_parent('partman_test.id_taptest_table', 'col
  t
 (1 row)
 ```
+```
 \d+ partman_test.id_taptest_table
                              Partitioned table "partman_test.id_taptest_table"
  Column |           Type           | Collation | Nullable | Default | Storage  | Stats target | Description 
