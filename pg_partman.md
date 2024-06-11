@@ -218,6 +218,8 @@ RETURNS boolean
  * `p_jobmon` - allow `pg_partman` to use the `pg_jobmon` extension to monitor that partitioning is working correctly. Defaults to TRUE.
  * `p_date_trunc_interval` - By default, pg_partman's time-based partitioning will truncate the child table starting values to line up at the beginning of typical boundaries (midnight for daily, day 1 for monthly, Jan 1 for yearly, etc). If a partitioning interval that does not fall on those boundaries is desired, this option may be required to ensure the child table has the expected boundaries (especially if you also set `p_start_partition`). The valid values allowed for this parameter are the interval values accepted by PostgreSQL's built-in `date_trunc()` function (day, week, month, etc). For example, if you set a 9-week interval, by default pg_partman would truncate the tables by month (since the interval is greater than one month but less than 1 year) and unexpectedly start on the first of the month in some cases. Set this parameter value to `week`, so that the child table start values are properly truncated on a weekly basis to line up with the 9-week interval. If you are using a custom time interval, please experiment with this option to get the expected set of child tables you desire or use a more typical partitioning interval to simplify partition management.
 
+
+<a id="create_sub_parent"></a>
 ```sql
 create_sub_parent(
     p_top_parent text
@@ -246,6 +248,7 @@ RETURNS boolean
  * The template table that is already set for the given p_top_parent will automatically be used.
 
 
+<a id="partition_data_time"></a>
 ```sql
 partition_data_time(
         p_parent_table text
@@ -275,6 +278,7 @@ RETURNS bigint
  * Returns the number of rows that were moved from the parent table to partitions. Returns zero when source table is empty and partitioning is complete.
 
 
+<a id="partition_data_id"></a>
 ```sql
 partition_data_id(p_parent_table text
     , p_batch_count int DEFAULT 1
@@ -303,6 +307,7 @@ RETURNS bigint
  * Returns the number of rows that were moved from the parent table to partitions. Returns zero when source table is empty and partitioning is complete.
 
 
+<a id="partition_data_proc"></a>
 ```sql
 partition_data_proc (
     p_parent_table text
@@ -332,6 +337,7 @@ partition_data_proc (
  * `p_quiet` - Procedures cannot return values, so by default it emits NOTICE's to show progress. Set this option to silence these notices.
 
 
+<a id="create_partition_time"></a>
 ```sql
 create_partition_time(
     p_parent_table text
@@ -349,6 +355,7 @@ RETURNS boolean
  * Returns TRUE if any child tables were created for the given timestamptz values. Returns false if no child tables were created.
 
 
+<a id="create_partition_id"></a>
 ```sql
 create_partition_id(
     p_parent_table text
@@ -368,6 +375,7 @@ RETURNS boolean
 
 ### Maintenance Objects
 
+<a id="run_maintenance"></a>
 ```sql
 run_maintenance(
     p_parent_table text DEFAULT NULL
@@ -388,6 +396,7 @@ RETURNS void
  * `p_jobmon` - an optional parameter to control whether `run_maintenance()` itself uses the `pg_jobmon` extension to log what it does. Whether the maintenance of a particular table uses `pg_jobmon` is controlled by the setting in the **part_config** table and this setting will have no affect on that. Defaults to true if not set.
 
 
+<a id="run_maintenance_proc"></a>
 ```sql
 run_maintenance_proc(
     p_wait int DEFAULT 0
@@ -402,6 +411,7 @@ run_maintenance_proc(
  * `p_analyze` - See p_analyze option in run_maintenance.
 
 
+<a id="check_default"></a>
 ```sql
 check_default(
     p_exact_count boolean DEFAULT true
@@ -414,8 +424,9 @@ check_default(
  * p_exact_count will tell the function to give back an exact count of how many rows are in each parent if any is found. This is the default if the parameter is left out. If you don't care about an exact count, you can set this to false and it will return if it finds even just a single row in any parent. This can significantly speed up the check if a lot of data ends up in a parent or there are many partitions being managed.
 
 
+<a id="show_partitions"></a>
 ```sql
-show_partitions (
+show_partitions(
     p_parent_table text
     , p_order text DEFAULT 'ASC'
     , p_include_default boolean DEFAULT false
@@ -432,6 +443,7 @@ RETURNS TABLE (
  * `p_order` - optional parameter to set the order the child tables are returned in. Defaults to ASCending. Set to 'DESC' to return in descending order. If the default is included, it is always listed first.
 
 
+<a id="show_partition_name"></a>
 ```sql
 show_partition_name(
     p_parent_table text
@@ -452,6 +464,7 @@ RETURNS record
  * Also returns a boolean value (table_exists) to say whether that child table actually exists
 
 
+<a id="show_partition_info"></a>
 ```sql
 show_partition_info(p_child_table text
     , p_partition_interval text DEFAULT NULL
@@ -474,6 +487,7 @@ RETURNS record
   * `OUT suffix` - Outputs the text portition appended to the child table that identifies its contents minus the "_p" (Ex "20230324" OR "920000"). Useful for generating your own suffixes for partitioning similar to how pg_partman does it.
 
 
+<a id="dump_partitioned_table_definition"></a>
 ```sql
 dump_partitioned_table_definition(
   p_parent_table text,
@@ -488,6 +502,7 @@ RETURNS text
   * `p_ignore_template` - The template table needs to be created before the SQL generated by this function will work properly. If you haven't modified the template table at all then it's safe to pass TRUE here to have the generated SQL tell partman to generate a new template table. But for safety it's preferred to use pg_dump to dump the template tables and restore them prior to using the generated SQL so that you can maintain any template overrides.
 
 
+<a id="partition_gap_fill"></a>
 ```sql
 partition_gap_fill(
     p_parent_table text
@@ -500,6 +515,7 @@ RETURNS integer
   * Returns how many child tables are created. Returns 0 if none are created.
 
 
+<a id="apply_constraints"></a>
 ```sql
 apply_constraints(
     p_parent_table text
@@ -521,6 +537,7 @@ RETURNS void
  * The p_job_id parameter is optional. It's for internal use and allows job logging to be consolidated into the original job that called this function if applicable.
 
 
+<a id="drop_constraints"></a>
 ```sql
 drop_constraints(
     p_parent_table text
@@ -536,6 +553,7 @@ RETURNS void
  * The debug parameter will show you the constraint drop statement that was used.
 
 
+<a id="reapply_constraints_proc"></a>
 ```sql
 reapply_constraints_proc(
     p_parent_table text
@@ -556,6 +574,7 @@ reapply_constraints_proc(
  * `p_dryrun` - Do not actually apply the drop/apply constraint commands when this procedure is run. Just outputs which tables the commands will be applied to as NOTICEs.
 
 
+<a id="reapply_privileges"></a>
 ```sql
 reapply_privileges(
     p_parent_table text
@@ -570,6 +589,7 @@ RETURNS void
  * `p_parent_table` - parent table of the partition set. Must be schema qualified and match a parent table name already configured in `pg_partman`.
 
 
+<a id="stop_sub_partition"></a>
 ```sql
 stop_sub_partition(
     p_parent_table text
@@ -584,6 +604,7 @@ RETURNS boolean
 
 ### Destruction Objects
 
+<a id="undo_partition"></a>
 ```sql
 undo_partition(
     p_parent_table text
@@ -617,6 +638,7 @@ RETURNS record
  * Returns the number of partitions undone and the number of rows moved to the parent table. The partitions undone value returns -1 if a problem is encountered.
 
 
+<a id="undo_partition_proc"></a>
 ```sql
 undo_partition_proc(
     p_parent_table text
@@ -650,6 +672,7 @@ undo_partition_proc(
 
 
 
+<a id="drop_partition_time"></a>
 ```sql
 drop_partition_time(
     p_parent_table text
@@ -672,6 +695,7 @@ RETURNS int
  * Returns the number of partitions affected.
 
 
+<a id="drop_partition_id"></a>
 ```sql
 drop_partition_id(
     p_parent_table text
@@ -694,6 +718,7 @@ RETURNS int
 
 ### Configuration Tables
 
+<a id="part_config"></a>
 **`part_config`**
 
 Stores all configuration data for partition sets mananged by the extension.
@@ -794,6 +819,7 @@ Stores all configuration data for partition sets mananged by the extension.
     - Timestamp of the last successful run of maintenance for this partition set. Can be useful as a monitoring metric to ensure partition maintenance is running properly.
 
 
+<a id="part_config_sub"></a>
 **`part_config_sub`**
 
  * Stores all configuration data for subpartitioned sets managed by `pg_partman`.
@@ -805,6 +831,7 @@ Stores all configuration data for partition sets mananged by the extension.
 
 If the extension was installed using *make*, the below script files should have been installed to the PostgreSQL binary directory.
 
+<a id="dump_partition"></a>
 *`dump_partition.py`*
 
  * A python script to dump out tables contained in the given schema. Uses pg_dump, creates a SHA-512 hash file of the dump file, and then drops the table.
@@ -830,6 +857,7 @@ If the extension was installed using *make*, the below script files should have 
  * `--version`:              Print out the minimum version of `pg_partman` this script is meant to work with. The version of `pg_partman` installed may be greater than this.
 
 
+<a id="vacuum_maintenance"></a>
 *`vacuum_maintenance.py`*
 
  * A python script to perform additional VACUUM maintenance on a given partition set. The main purpose of this is to provide an easier means of freezing tuples in older partitions that are no longer written to. This allows autovacuum to skip over them safely without causing transaction id wraparound issues. See the PostgreSQL documentation for more information on this maintenance issue: http://www.postgresql.org/docs/current/static/routine-vacuuming.html#VACUUM-FOR-WRAPAROUND.
@@ -846,6 +874,7 @@ If the extension was installed using *make*, the below script files should have 
  * --debug:                     Show additional debugging output.
 
 
+<a id="check_unique_constraints"></a>
 *`check_unique_constraints.py`*
 
  * Declarative partitioning has the shortcoming of not allowing a unique constraint if the constraint does not include the partition column. This is often not possible, especially with time-based partitioning. This script is used to check that all rows in a partition set are unique for the given columns.
