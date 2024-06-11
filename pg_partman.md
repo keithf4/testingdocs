@@ -28,7 +28,7 @@ Table of Contents
  - [Time Interval Considerations](#time-interval-considerations)
  - [Naming Length Limits](#naming-length-limits)
  - [Unique Constraints](#unique-constraints)
- - [Logging/Monitoring](#logging/monitoring)
+ - [Logging/Monitoring](#logging-monitoring)
 
 ## Features
 
