@@ -33,38 +33,38 @@ Table of Contents
 [Background Worker](#background-worker)
 [Extension Objects](#extension-objects)
  - [Creation Objects](#creation-objects)
-    - [create_parent](#create-parent)
-    - create_sub_parent
-    - partition_data_time
-    - partition_data_id
-    - partition_data_proc
-    - create_partition_time
-    - create_partition_id
- - [Maintenance Objects(#maintenance-objects)
-    - run_maintenance
-    - run_maintenance_proc
-    - check_default
-    - show_partitions
-    - show_partition_name
-    - show_partition_info 
-    - dump_partitioned_table_definition
-    - partition_gap_fill
-    - apply_constraints
-    - drop_constraints
-    - reapply_constraints_proc
-    - reapply_privileges
-    - stop_sub_partition
+    - [create_parent](#create_parent)
+    - [create_sub_parent](#create_sub_parent)
+    - [partition_data_time](#partition_data_time)
+    - [partition_data_id](#partition_data_id)
+    - [partition_data_proc](#partition_data_proc)
+    - [create_partition_time](#create_partition_time)
+    - [create_partition_id](#create_partition_id)
+ - [Maintenance Objects](#maintenance-objects)
+    - [run_maintenance](#run_maintenance)
+    - [run_maintenance_proc](#run_maintenance_proc)
+    - [check_default](#check_default)
+    - [show_partitions](#show_partitions)
+    - [show_partition_name](#show_partition_name)
+    - [show_partition_info](#show_partition_info)
+    - [dump_partitioned_table_definition](#dump_partitioned_table_definition)
+    - [partition_gap_fill](#partition_gap_fill)
+    - [apply_constraints](#apply_constraints)
+    - [drop_constraints](#drop_constraints)
+    - [reapply_constraints_proc](#reapply_constraints_proc)
+    - [reapply_privileges](#reapply_privileges)
+    - [stop_sub_partition](#stop_sub_partition)
  - [Destruction Objects(#destruction-objects)
-    - undo_partition
-    - drop_partition_time
-    - drop_partition_id
+    - [undo_partition](#undo_partition)
+    - [drop_partition_time](#drop_partition_time)
+    - [drop_partition_id](#drop_partition_id)
  - [Configuration Tables](#configuration-tables)
-    - part_config
-    - part_config_sub
+    - [part_config](#part_config)
+    - [part_config_sub](#part_config_sub)
  - [Scripts](#scripts)
-    - dump_partition.py
-    - vacuum_maintenance.py
-    - check_unique_constraints.py
+    - [dump_partition.py](#dump_partition)
+    - [vacuum_maintenance.py](#vacuum_maintenance)
+    - [check_unique_constraints.py](#check_unique_constraints)
 
 ## Features
 
@@ -179,7 +179,7 @@ As a note for people that were not aware, you can name arguments in function cal
 
 ### Creation Objects
 
-<a id="create-parent"></a>
+<a id="create_parent"></a>
 ```sql
 create_parent(
     p_parent_table text
