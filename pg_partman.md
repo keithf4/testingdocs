@@ -37,8 +37,34 @@ Table of Contents
     - create_sub_parent
     - partition_data_time
     - partition_data_id
+    - partition_data_proc
+    - create_partition_time
+    - create_partition_id
  - [Maintenance Objects(#maintenance-objects)
+    - run_maintenance
+    - run_maintenance_proc
+    - check_default
+    - show_partitions
+    - show_partition_name
+    - show_partition_info 
+    - dump_partitioned_table_definition
+    - partition_gap_fill
+    - apply_constraints
+    - drop_constraints
+    - reapply_constraints_proc
+    - reapply_privileges
+    - stop_sub_partition
  - [Destruction Objects(#destruction-objects)
+    - undo_partition
+    - drop_partition_time
+    - drop_partition_id
+ - [Configuration Tables](#configuration-tables)
+    - part_config
+    - part_config_sub
+ - [Scripts](#scripts)
+    - dump_partition.py
+    - vacuum_maintenance.py
+    - check_unique_constraints.py
 
 ## Features
 
@@ -666,7 +692,7 @@ RETURNS int
  * Returns the number of partitions affected.
 
 
-### Tables
+### Configuration Tables
 
 **`part_config`**
 
