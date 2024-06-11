@@ -21,7 +21,14 @@ Table of Contents
 [Features](#features)
 
  - [Child Table Property Inheritance](#child-table-property-inheritance)
- - 
+ - [Time Zones](#time-zones)
+ - [Subpartitioning](#subpartitioning)
+ - [Retention](#retention)
+ - [Constraint Exclusion](#constraint-exclusion)
+ - [Time Interval Considerations](#time-interval-considerations)
+ - [Naming Length Limits](#naming-length-limits)
+ - [Unique Constraints](#unique-constraints)
+ - [Logging/Monitoring](#logging/monitoring)
 
 ## Features
 
@@ -46,8 +53,7 @@ Privileges & ownership are NOT inherited by default. If enabled by pg_partman, n
 If you are using the IDENTITY feature for sequences, the automatic generation of new sequence values using this feature is only supported when data is inserted through the parent table, not directly into the children.
 
 IMPORTANT NOTES:
-
- * The template table feature is only a temporary solution to help speed up declarative partitioning adoption. As things are handled better in core, the use of the template table will be phased out quickly from pg_partman. If a feature that was managed by the template is supported in core in the future, it will eventually be removed from template management in pg_partman, so please plan ahead for that during major version upgrading if it applies to you.
+* The template table feature is only a temporary solution to help speed up declarative partitioning adoption. As things are handled better in core, the use of the template table will be phased out quickly from pg_partman. If a feature that was managed by the template is supported in core in the future, it will eventually be removed from template management in pg_partman, so please plan ahead for that during major version upgrading if it applies to you.
 
  * The UNLOGGED status is managed via pg_partman's template due to an inconsistency in the way the property is handled when either enabling or disabling UNLOGGED on the parent table of a partition set. That property does not actually change on the parent table when the ALTER command is written so new child tables will continue to use the property that existed before. So if you wanted to change a partition set from UNLOGGED to LOGGED for all future children, it does not work. With the property now being managed on the template table, changing it there will allow the change to propagate to newly created children. Pre-existing child tables will have to be changed manually, but that has always been the case. See reported bug at https://www.postgresql.org/message-id/flat/15954-b61523bed4b110c4%40postgresql.org
 
