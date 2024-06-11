@@ -19,7 +19,7 @@ Table of Contents
 -----------------
 
 [Features](#features)
-    [Child Table Property Inheritance](#child-table-property-inheritance)
+    - [Child Table Property Inheritance](#child-table-property-inheritance)
     - 
 
 ## Features
