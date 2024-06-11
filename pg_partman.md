@@ -31,6 +31,14 @@ Table of Contents
  - [Logging/Monitoring](#logging-monitoring)
 
 [Background Worker](#background-worker)
+[Extension Objects](#extension-objects)
+ - [Creation Objects](#creation-objects)
+    - [create_parent](#create-parent)
+    - create_sub_parent
+    - partition_data_time
+    - partition_data_id
+ - [Maintenance Objects(#maintenance-objects)
+ - [Destruction Objects(#destruction-objects)
 
 ## Features
 
@@ -143,8 +151,9 @@ Requiring a superuser to use pg_partman is completely optional. To run as a non-
 
 As a note for people that were not aware, you can name arguments in function calls to make calling them easier and avoid confusion when there are many possible arguments. If a value has a default listed, it is not required to pass a value for that argument. As an example: `SELECT create_parent('schema.table', 'col1',  '1 day', p_start_partition := '2023-03-20');`
 
-### Creation Functions
+### Creation Objects
 
+<a id="create-parent"></a>
 ```sql
 create_parent(
     p_parent_table text
@@ -331,7 +340,7 @@ RETURNS boolean
  * Returns TRUE if any child tables were created for the given integer values. Returns false if no child tables were created.
 
 
-### Maintenance Functions
+### Maintenance Objects
 
 ```sql
 run_maintenance(
@@ -547,7 +556,7 @@ RETURNS boolean
  * This function simply deletes the parent_table entry from the part_config_sub table. But this gives a predictable, programmatic way to do so and also provides jobmon logging for the operation.
 
 
-### Destruction Functions
+### Destruction Objects
 
 ```sql
 undo_partition(
