@@ -30,6 +30,8 @@ Table of Contents
  - [Unique Constraints](#unique-constraints)
  - [Logging/Monitoring](#logging-monitoring)
 
+[Background Worker](#background-worker)
+
 ## Features
 
 ### Child Table Property Inheritance
