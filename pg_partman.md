@@ -54,7 +54,7 @@ Table of Contents
     - [reapply_constraints_proc](#reapply_constraints_proc)
     - [reapply_privileges](#reapply_privileges)
     - [stop_sub_partition](#stop_sub_partition)
- - [Destruction Objects(#destruction-objects)
+ - [Destruction Objects](#destruction-objects)
     - [undo_partition](#undo_partition)
     - [drop_partition_time](#drop_partition_time)
     - [drop_partition_id](#drop_partition_id)
@@ -89,8 +89,8 @@ Privileges & ownership are NOT inherited by default. If enabled by pg_partman, n
 If you are using the IDENTITY feature for sequences, the automatic generation of new sequence values using this feature is only supported when data is inserted through the parent table, not directly into the children.
 
 IMPORTANT NOTES:
-* The template table feature is only a temporary solution to help speed up declarative partitioning adoption. As things are handled better in core, the use of the template table will be phased out quickly from pg_partman. If a feature that was managed by the template is supported in core in the future, it will eventually be removed from template management in pg_partman, so please plan ahead for that during major version upgrading if it applies to you.
-
+ * The template table feature is only a temporary solution to help speed up declarative partitioning adoption. As things are handled better in core, the use of the template table will be phased out quickly from pg_partman. If a feature that was managed by the template is supported in core in the future, it will eventually be removed from template management in pg_partman, so please plan ahead for that during major version upgrading if it applies to you.
+ * If you are needing to use the REPLICA IDENTITY property for logical replication with the USING INDEX clause, note that this is only supported if the index you need to use has been created on the actual parent table, NOT the template. Since there is no way to limit whether the REPLICA IDENTITY is made on both the parent table and the template, there's no way to tell which one is the "right" identity. Therefore only the parent table was chosen as the source to be consistent with the other identity inheritance methods (FULL & NONE).
  * The UNLOGGED status is managed via pg_partman's template due to an inconsistency in the way the property is handled when either enabling or disabling UNLOGGED on the parent table of a partition set. That property does not actually change on the parent table when the ALTER command is written so new child tables will continue to use the property that existed before. So if you wanted to change a partition set from UNLOGGED to LOGGED for all future children, it does not work. With the property now being managed on the template table, changing it there will allow the change to propagate to newly created children. Pre-existing child tables will have to be changed manually, but that has always been the case. See reported bug at https://www.postgresql.org/message-id/flat/15954-b61523bed4b110c4%40postgresql.org
 
 ### Time Zones
@@ -195,6 +195,9 @@ create_parent(
     , p_template_table text DEFAULT NULL
     , p_jobmon boolean DEFAULT true
     , p_date_trunc_interval text DEFAULT NULL
+    , p_control_not_null boolean DEFAULT true
+    , p_time_encoder text DEFAULT NULL
+    , p_time_decoder text DEFAULT NULL
 )
 RETURNS boolean
 ```
@@ -203,37 +206,43 @@ RETURNS boolean
  * An ACCESS EXCLUSIVE lock is taken on the parent table during the running of this function. No data is moved when running this function, so lock should be brief
  * A default partition and template table are created by default unless otherwise configured
  * `p_parent_table` - the existing parent table. MUST be schema qualified, even if in public schema
- * `p_control` - the column that the partitioning will be based on. Must be a time or integer based column
+ * `p_control` - the column that the partitioning will be based on. Must be a time, integer, text or uuid based column. When control is of type text/uuid, p_time_encoder and p_time_decoder must be set.
  * `p_interval` - the time or integer range interval for each partition. No matter the partitioning type, value must be given as text.
     + *\<interval\>*      - Any valid value for the interval data type. Do not type cast the parameter value, just leave as text.
     + *\<integer\>*       - For ID based partitions, the integer value range of the ID that should be set per partition. Enter this as an integer in text format ('100' not 100). If the interval is >=2, then the `p_type` must be `range`. If the interval equals 1, then the `p_type` must be `list`. Also note that while numeric values are supported for id-based partitioning, the interval must still be a whole number integer.
  * `p_type` - the type of partitioning to be done. Currently only **range** and **list** are supported. See `p_interval` parameter for special conditions concerning type.
- * `p_epoch` - tells `pg_partman` that the control column is an integer type, but actually represents and epoch time value. Valid values for this option are: 'seconds', 'milliseconds', 'nanoseconds', and 'none'. The default is 'none'. All table names will be time-based. In addition to a normal index on the control column, be sure you create a functional, time-based index on the control column (to_timestamp(controlcolumn)) as well so this works efficiently.
+ * `p_epoch` - tells `pg_partman` that the control column is an integer type, but actually represents and epoch time value. Valid values for this option are: 'seconds', 'milliseconds', 'microseconds', 'nanoseconds', and 'none'. The default is 'none'. All table names will be time-based. In addition to a normal index on the control column, be sure you create a functional, time-based index on the control column (to_timestamp(controlcolumn)) as well so this works efficiently.
  * `p_premake` - is how many additional partitions to always stay ahead of the current partition. Default value is 4. This will keep at minimum 5 partitions made, including the current one. For example, if today was Sept 6th, and `premake` was set to 4 for a daily partition, then partitions would be made for the 6th as well as the 7th, 8th, 9th and 10th. Note some intervals may occasionally cause an extra partition to be premade or one to be missed due to leap years, differing month lengths, etc. This usually won't hurt anything and should self-correct (see **About** section concerning timezones and non-UTC). If partitioning ever falls behind the `premake` value, normal running of `run_maintenance()` and data insertion should automatically catch things up.
  * `p_start_partition` - allows the first partition of a set to be specified instead of it being automatically determined. Must be a valid timestamp (for time-based) or positive integer (for id-based) value. Be aware, though, the actual parameter data type is text. For time-based partitioning, all partitions starting with the given timestamp up to CURRENT_TIMESTAMP (plus `premake`) will be created. For id-based partitioning, only the partition starting at the given value (plus `premake`) will be made. Note that for subpartitioning, this only applies during initial setup and not during ongoing maintenance.
  * `p_default_table` - boolean flag to determine whether a default table is created. Defaults to true.
  * `p_automatic_maintenance` - parameter to set whether maintenance is managed automatically when `run_maintenance()` is called without a table parameter or by the background worker process. Current valid values are "on" and "off". Default is "on". When set to off, `run_maintenance()` can still be called on an individual partition set by passing it as a parameter to the function.  See **run_maintenance** in Maintenance Functions section below for more info.
- * `p_constraint_cols` - an optional array parameter to set the columns that will have additional constraints set. See the **About** section above for more information on how this works and the **apply_constraints()** function for how this is used.
+ * `p_constraint_cols` - an optional array parameter to set the columns that will have additional constraints set. See the [Constraint Exclusion](#constraint-exclusion) section above for more information on how this works and the **apply_constraints()** function for how this is used.
  * `p_template_table` - If you do not pass a value here, a template table will automatically be made for you in same schema that pg_partman was installed to. If you pre-create a template table and pass its name here, then the initial child tables will obtain these properties discussed in the **About** section immediately.
  * `p_jobmon` - allow `pg_partman` to use the `pg_jobmon` extension to monitor that partitioning is working correctly. Defaults to TRUE.
  * `p_date_trunc_interval` - By default, pg_partman's time-based partitioning will truncate the child table starting values to line up at the beginning of typical boundaries (midnight for daily, day 1 for monthly, Jan 1 for yearly, etc). If a partitioning interval that does not fall on those boundaries is desired, this option may be required to ensure the child table has the expected boundaries (especially if you also set `p_start_partition`). The valid values allowed for this parameter are the interval values accepted by PostgreSQL's built-in `date_trunc()` function (day, week, month, etc). For example, if you set a 9-week interval, by default pg_partman would truncate the tables by month (since the interval is greater than one month but less than 1 year) and unexpectedly start on the first of the month in some cases. Set this parameter value to `week`, so that the child table start values are properly truncated on a weekly basis to line up with the 9-week interval. If you are using a custom time interval, please experiment with this option to get the expected set of child tables you desire or use a more typical partitioning interval to simplify partition management.
+ * `p_control_not_null` - By default, this value is true and the control column must be set to NOT NULL. Setting this to false allows the control column to be NULL. Allowing this is not advised without very careful review and an explicit use-case defined as it can cause excessive data in the DEFAULT child partition.
+ * `p_time_encoder` - name of function that encodes a timestamp into a string representing your partition bounds. Setting this implicitly enables time based partitioning and is mandatory for text/uuid control column types. This enables partitioning tables using time based identifiers like uuidv7, ulid, snowflake ids and others. The function must handle NULL input safely. See test-time-daily.sql and test-uuid-daily for usage examples.
+ * `p_time_decoder` - name of function that decodes a text/uuid control value into a timestamp. Setting this implicitly enables time based partitioning and is mandatory for text/uuid control column types. This enables partitioning tables using time based identifiers like uuidv7, ulid, snowflake ids and others. The function must handle NULL input safely. See test-time-daily.sql and test-uuid-daily for usage examples.
 
 
 <a id="create_sub_parent"></a>
 ```sql
 create_sub_parent(
     p_top_parent text
-    , p_declarative_check text DEFAULT NULL
     , p_control text
     , p_interval text
     , p_type text DEFAULT 'range'
-    , p_epoch text DEFAULT 'none'
+    , p_default_table boolean DEFAULT true
+    , p_declarative_check text DEFAULT NULL
+    , p_constraint_cols text[] DEFAULT NULL
     , p_premake int DEFAULT 4
     , p_start_partition text DEFAULT NULL
-    , p_default_table boolean DEFAULT true
-    , p_constraint_cols text[] DEFAULT NULL
+    , p_epoch text DEFAULT 'none'
     , p_jobmon boolean DEFAULT true
     , p_date_trunc_interval text DEFAULT NULL
+    , p_control_not_null boolean DEFAULT true
+    , p_time_encoder text DEFAULT NULL
+    , p_time_decoder text DEFAULT NULL
 )
 RETURNS boolean
 ```
@@ -251,14 +260,14 @@ RETURNS boolean
 <a id="partition_data_time"></a>
 ```sql
 partition_data_time(
-        p_parent_table text
-        , p_batch_count int DEFAULT 1
-        , p_batch_interval interval DEFAULT NULL
-        , p_lock_wait numeric DEFAULT 0
-        , p_order text DEFAULT 'ASC'
-        , p_analyze boolean DEFAULT true
-        , p_source_table text DEFAULT NULL
-        , p_ignored_columns text[] DEFAULT NULL
+    p_parent_table text
+    , p_batch_count int DEFAULT 1
+    , p_batch_interval interval DEFAULT NULL
+    , p_lock_wait numeric DEFAULT 0
+    , p_order text DEFAULT 'ASC'
+    , p_analyze boolean DEFAULT true
+    , p_source_table text DEFAULT NULL
+    , p_ignored_columns text[] DEFAULT NULL
 )
 RETURNS bigint
 ```
@@ -281,6 +290,7 @@ RETURNS bigint
 <a id="partition_data_id"></a>
 ```sql
 partition_data_id(p_parent_table text
+    p_parent_table text
     , p_batch_count int DEFAULT 1
     , p_batch_interval bigint DEFAULT NULL
     , p_lock_wait numeric DEFAULT 0
@@ -315,8 +325,8 @@ partition_data_proc (
     , p_interval text DEFAULT NULL
     , p_lock_wait int DEFAULT 0
     , p_lock_wait_tries int DEFAULT 10
-    , p_wait int DEFAULT 1, p_order text DEFAULT 'ASC'
-    , p_order text DEFAULT 'ASC',
+    , p_wait int DEFAULT 1
+    , p_order text DEFAULT 'ASC'
     , p_source_table text DEFAULT NULL
     , p_ignored_columns text[] DEFAULT NULL
     , p_quiet boolean DEFAULT false
@@ -391,7 +401,7 @@ RETURNS void
  * Every run checks for all tables listed in the **part_config** table with **automatic_maintenance** set to true and either creates new partitions for them or runs their retention policy.
  * By default, all partition sets have automatic_maintenance set to true.
  * New partitions are only created if the number of child tables ahead of the current one is less than the premake value, so you can run this more often than needed without fear of needlessly creating more partitions.
- * `p_parent_table` - an optional parameter that if passed will cause `run_maintenance()` to be run for ONLY that given table, no matter what automatic_maintenance is set to. High transcation rate tables can cause contention when maintenance is being run for many tables at the same time, so this allows finer control of when partition maintenance is run for specific tables. Note that this will also cause the retention system to only be run for the given table as well.
+ * `p_parent_table` - an optional parameter that if passed will cause `run_maintenance()` to be run for ONLY that given table, no matter what automatic_maintenance is set to. High transaction rate tables can cause contention when maintenance is being run for many tables at the same time, so this allows finer control of when partition maintenance is run for specific tables. Note that this will also cause the retention system to only be run for the given table as well.
  * `p_analyze` - By default, an analyze is not run after new child tables are created For large partition sets, an analyze can take a while and if `run_maintenance()` is managing several partitions in a single run, this can cause contention while the analyze finishes. However, for constraint exclusion or partition prunning to be fully effective, an analyze must be done from the parent level at some point. Set this to true to have an analyze run on any partition sets that have at least one new child table created. If no new child tables are created in a partition set, no analyze will be run even if this is set to true.
  * `p_jobmon` - an optional parameter to control whether `run_maintenance()` itself uses the `pg_jobmon` extension to log what it does. Whether the maintenance of a particular table uses `pg_jobmon` is controlled by the setting in the **part_config** table and this setting will have no affect on that. Defaults to true if not set.
 
@@ -583,8 +593,8 @@ RETURNS void
 ```
 
  * This function is used to reapply ownership & grants on all child tables based on what the parent table has set.
- * Privileges that the parent table has will be granted to all child tables and privilges that the parent does not have will be revoked (with CASCADE).
- * Privilges that are checked for are SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, & TRIGGER.
+ * Privileges that the parent table has will be granted to all child tables and privileges that the parent does not have will be revoked (with CASCADE).
+ * Privileges that are checked for are SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, & TRIGGER.
  * Be aware that for large partition sets, this can be a very long running operation and is why it was made into a separate function to run independently. Only privileges that are different between the parent & child are applied, but it still has to do system catalog lookups and comparisons for every single child partition and all individual privileges on each.
  * `p_parent_table` - parent table of the partition set. Must be schema qualified and match a parent table name already configured in `pg_partman`.
 
@@ -623,7 +633,7 @@ RETURNS record
  * Undo a partition set created by `pg_partman`. This function MOVES the data from the child tables to the given target table.
  * If you are trying to un-partition a large amount of data automatically, it is recommended to use the `undo_partition_proc()` procedure to do the same thing. This will greatly reduce issues caused by long running transactions and data contention.
  * When this function is run, the **`undo_in_progress`** column in the configuration table is set to true. This causes all partition creation and retention management to stop.
- * By default, partitions are not DROPPED, they are DETTACHed. This leave previous child tables as empty, independent tables.
+ * By default, partitions are not DROPPED, they are DETACHed. This leave previous child tables as empty, independent tables.
  * Without setting either batch argument manually, each run of the function will move all the data from a single partition into the target.
  * Once all child tables have been uninherited/dropped, the configuration data is removed from `pg_partman` automatically.
  * For subpartitioned tables, you may have to start at the lowest level parent table and undo from there then work your way up.
@@ -721,7 +731,7 @@ RETURNS int
 <a id="part_config"></a>
 **`part_config`**
 
-Stores all configuration data for partition sets mananged by the extension.
+Stores all configuration data for partition sets managed by the extension.
 
     parent_table text NOT NULL
     , control text NOT NULL
@@ -787,7 +797,7 @@ Stores all configuration data for partition sets mananged by the extension.
  - `constraint_cols`
     - Array column that lists columns to have additional constraints applied. See **About** section for more information on how this feature works.
  - `optimize_constraint`
-    - Manages which old tables get additional constraints set if configured to do so. See **About** section for more info. Default 30.
+    - Manages which old tables get additional constraints set if configured to do so. This value is a count on the number of child tables backwards from the newest child table that contains data. The default value of 30 means that the constraints will be created on the the child table that is 30 behind the newest child table that contains data. See **About** section for more info.
  - `infinite_time_partitions`
     - By default, new partitions in a time-based set will not be created if new data is not inserted to keep an infinite amount of empty tables from being created.
     - If you'd still like new partitions to be made despite there being no new data, set this to TRUE.
